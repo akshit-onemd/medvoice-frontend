@@ -130,42 +130,27 @@ export function SystemReviewCard({ systemReview }) {
                             {Array.isArray(s.findings) &&
                                 s.findings.filter((f) => f.finding).length >
                                     0 && (
-                                    <div className="flex flex-wrap items-center">
+                                    <div>
                                         {s.findings
                                             .filter((f) => f.finding)
                                             .map((f, fi) => (
-                                                <span
-                                                    key={fi}
-                                                    className="inline-flex items-center mr-1.5 mb-1.5"
-                                                >
+                                                <div key={fi} className="mb-2">
                                                     <Chip>{f.finding}</Chip>
-                                                    {f.snomed_ct_code && (
-                                                        <span
-                                                            className="text-[10px] font-mono -ml-1"
-                                                            style={{
-                                                                color: f.snomed_ct_code_corrected
-                                                                    ? "#B8823C"
-                                                                    : f.snomed_ct_code_verified ===
-                                                                        false
-                                                                      ? "#A8453C"
-                                                                      : undefined,
-                                                            }}
-                                                            title={
-                                                                f.snomed_ct_code_corrected
-                                                                    ? "Auto-corrected via UMLS"
-                                                                    : f.snomed_ct_code_verified ===
-                                                                        false
-                                                                      ? "Not found in UMLS"
-                                                                      : f.snomed_ct_code_verified ===
-                                                                          true
-                                                                        ? "Verified in UMLS"
-                                                                        : "Not yet verified"
-                                                            }
-                                                        >
-                                                            ({f.snomed_ct_code})
-                                                        </span>
-                                                    )}
-                                                </span>
+
+                                                    <CodeRow
+                                                        codes={[
+                                                            {
+                                                                system: "SNOMED",
+                                                                code: f.snomed_ct_code,
+                                                                term: f.snomed_ct_term,
+                                                                verified:
+                                                                    f.snomed_ct_code_verified,
+                                                                corrected:
+                                                                    f.snomed_ct_code_corrected,
+                                                            },
+                                                        ]}
+                                                    />
+                                                </div>
                                             ))}
                                     </div>
                                 )}

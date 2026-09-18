@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, RotateCcw, Stethoscope } from "lucide-react";
+import { ArrowLeft, ChevronDown, RotateCcw, Stethoscope } from "lucide-react";
 import { VitalsCard, AllergiesCard } from "./sections/VitalsAndAllergies";
 import {
     ConditionsCard,
@@ -93,7 +93,7 @@ export default function ResultView({ result, onReset }) {
                     {showTranscript && (
                         <div className="px-6 pb-6">
                             <p className="text-sm text-ink/80 leading-relaxed whitespace-pre-wrap">
-                                {result.transcript}
+                                {result.diarizedTranscript || result.transcript}
                             </p>
                         </div>
                     )}
@@ -126,8 +126,8 @@ function TopBar({ onReset, language }) {
                 onClick={onReset}
                 className="inline-flex items-center gap-2 rounded border border-line bg-surface px-3.5 py-2 text-sm text-ink hover:bg-paper transition-colors"
             >
-                <RotateCcw size={14} strokeWidth={1.75} />
-                New consultation
+                <ArrowLeft size={14} strokeWidth={1.75} />
+                Go Back
             </button>
         </div>
     );

@@ -30,6 +30,29 @@ export const PROCESSING_STAGES = [
 
     { key: "finalize", label: "Preparing your summary", estimateMs: 2000 },
 ];
+export async function searchPatients(query) {
+    const res = await fetch(
+        `${API_BASE_URL}/patients/search?query=${encodeURIComponent(query)}`,
+    );
+    if (!res.ok) throw new Error("Patient search failed");
+    const data = await res.json();
+    return data.patients || [];
+}
+
+export async function getPatientConsultations(patientId) {
+    const res = await fetch(
+        `${API_BASE_URL}/patients/${patientId}/consultations`,
+    );
+    if (!res.ok) throw new Error("Failed to load consultations");
+    const data = await res.json();
+    return data.consultations || [];
+}
+
+export async function getConsultation(consultationId) {
+    const res = await fetch(`${API_BASE_URL}/consultations/${consultationId}`);
+    if (!res.ok) throw new Error("Failed to load consultation");
+    return res.json();
+}
 
 /**
  * Uploads an audio file to the backend and reports simulated stage
@@ -40,11 +63,13 @@ export async function processAudio(
     file,
     attachments = [],
     patientInfo,
+    sttProvider = "whisper",
     onStageChange,
 ) {
     const formData = new FormData();
     if (file) formData.append("file", file, file.name || "recording.webm");
     attachments.forEach((att) => formData.append("attachments", att, att.name));
+    formData.append("stt_provider", sttProvider);
 
     if (patientInfo.id) {
         formData.append("patient_id", patientInfo.id);

@@ -54,6 +54,7 @@ export default function UploadPanel({ onSubmit }) {
     const [newAge, setNewAge] = useState("");
     const [newGender, setNewGender] = useState("");
     const [newPhone, setNewPhone] = useState("");
+    const [sttProvider, setSttProvider] = useState("whisper");
     useEffect(() => {
         if (patientQuery.trim().length < 2) {
             setPatientResults([]);
@@ -288,7 +289,7 @@ export default function UploadPanel({ onSubmit }) {
                   gender: newGender,
                   phone: newPhone.trim(),
               };
-        onSubmit(file, attachments, patientInfo);
+        onSubmit(file, attachments, patientInfo, sttProvider);
     };
     return (
         <div className="w-full max-w-2xl mx-auto">
@@ -442,6 +443,22 @@ export default function UploadPanel({ onSubmit }) {
                             </button>
                         </div>
                     )}
+                </div>
+                <div className="mb-4 flex items-center gap-3">
+                    <label className="text-sm text-ink">
+                        Transcription engine
+                    </label>
+                    <select
+                        value={sttProvider}
+                        onChange={(e) => setSttProvider(e.target.value)}
+                        className="rounded border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-clinical-500 outline-none"
+                    >
+                        <option value="whisper">Whisper</option>
+                        <option value="sarvam">Sarvam</option>
+                        <option value="elevenlabs">
+                            ElevenLabs
+                        </option>
+                    </select>{" "}
                 </div>
                 <h2 className="font-serif text-lg text-ink mb-1">
                     Add a consultation recording
