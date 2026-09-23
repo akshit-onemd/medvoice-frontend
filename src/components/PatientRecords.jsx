@@ -76,7 +76,7 @@ export default function PatientRecords() {
 
     return (
         <div className="w-full max-w-2xl mx-auto">
-            <div className="flex items-center gap-3 mb-8">
+            {/* <div className="flex items-center gap-3 mb-8">
                 <div className="flex h-10 w-10 items-center justify-center rounded bg-clinical-500 text-paper">
                     <Stethoscope size={20} strokeWidth={1.75} />
                 </div>
@@ -88,7 +88,7 @@ export default function PatientRecords() {
                         Search a patient to view their past consultations
                     </p>
                 </div>
-            </div>
+            </div> */}
 
             <div className="bg-surface border border-line rounded-md shadow-panel p-8">
                 {selectedPatient ? (

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mic, Users } from "lucide-react";
+import { Mic, Plus, Users, Stethoscope } from "lucide-react";
 import UploadPanel from "./components/UploadPanel";
 import ProcessingView from "./components/ProcessingView";
 import ResultView from "./components/ResultView";
@@ -66,34 +66,47 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-paper px-4 py-10 sm:py-16">
-            {showNav && (
-                <div className="w-full max-w-2xl mx-auto mb-6 flex gap-2">
-                    <button
-                        type="button"
-                        onClick={reset}
-                        className={`inline-flex items-center gap-2 rounded px-3.5 py-2 text-sm transition-colors ${
-                            stage === "idle" || stage === "error"
-                                ? "bg-clinical-500 text-paper"
-                                : "border border-line bg-surface text-ink hover:bg-clinical-50"
-                        }`}
-                    >
-                        <Mic size={14} strokeWidth={1.75} />
-                        New consultation
-                    </button>
-                    <button
-                        type="button"
-                        onClick={goToRecords}
-                        className={`inline-flex items-center gap-2 rounded px-3.5 py-2 text-sm transition-colors ${
-                            stage === "records"
-                                ? "bg-clinical-500 text-paper"
-                                : "border border-line bg-surface text-ink hover:bg-clinical-50"
-                        }`}
-                    >
-                        <Users size={14} strokeWidth={1.75} />
-                        Patient records
-                    </button>
+            <div className="w-full max-w-2xl mx-auto mb-6">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="flex h-10 w-10 items-center justify-center rounded bg-clinical-500 text-paper">
+                        <Stethoscope size={20} strokeWidth={1.75} />
+                    </div>
+                    <div>
+                        <h1 className="font-serif text-2xl text-ink leading-tight">
+                            OneMD Scribe
+                        </h1>
+                    </div>
                 </div>
-            )}
+
+                {showNav && (
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={reset}
+                            className={`inline-flex w-full justify-center items-center gap-2 rounded px-3.5 py-2 text-sm transition-colors ${
+                                stage === "idle" || stage === "error"
+                                    ? "bg-clinical-500 text-paper"
+                                    : "border border-line bg-surface text-ink hover:bg-clinical-50"
+                            }`}
+                        >
+                            <Plus size={14} strokeWidth={1.75} />
+                            New consultation
+                        </button>
+                        <button
+                            type="button"
+                            onClick={goToRecords}
+                            className={`w-full justify-center inline-flex items-center gap-2 rounded px-3.5 py-2 text-sm transition-colors ${
+                                stage === "records"
+                                    ? "bg-clinical-500 text-paper"
+                                    : "border border-line bg-surface text-ink hover:bg-clinical-50"
+                            }`}
+                        >
+                            <Users size={14} strokeWidth={1.75} />
+                            Patient records
+                        </button>
+                    </div>
+                )}
+            </div>
 
             {stage === "idle" && <UploadPanel onSubmit={handleSubmit} />}
             {stage === "processing" && (

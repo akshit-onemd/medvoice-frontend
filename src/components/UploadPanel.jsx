@@ -5,7 +5,6 @@ import {
     UploadCloud,
     FileAudio,
     X,
-    Stethoscope,
     Paperclip,
     FileText,
     Camera,
@@ -32,7 +31,6 @@ function formatDuration(seconds) {
 
 export default function UploadPanel({ onSubmit }) {
     const [file, setFile] = useState(null);
-    const [isDragging, setIsDragging] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [recordSeconds, setRecordSeconds] = useState(0);
     const [error, setError] = useState("");
@@ -95,6 +93,14 @@ export default function UploadPanel({ onSubmit }) {
         setError("");
         setFile(picked);
     }, []);
+
+    const triggerUpload = () => {
+        if (!hasPatient) {
+            setError("Select or add a patient before uploading.");
+            return;
+        }
+        inputRef.current?.click();
+    };
     const handleAttachments = (fileList) => {
         const picked = Array.from(fileList || []);
         console.log(
@@ -112,11 +118,6 @@ export default function UploadPanel({ onSubmit }) {
     };
     const removeAttachment = (i) => {
         setAttachments((prev) => prev.filter((_, idx) => idx !== i));
-    };
-    const onDrop = (e) => {
-        e.preventDefault();
-        setIsDragging(false);
-        handleFiles(e.dataTransfer.files);
     };
     const openCamera = async () => {
         setError("");
@@ -185,8 +186,17 @@ export default function UploadPanel({ onSubmit }) {
         setSelectedPatient(null);
         setShowNewPatientForm(false);
     };
+    const hasPatient =
+        !!selectedPatient ||
+        (showNewPatientForm && newName.trim() && newPhone.trim());
+
     const startRecording = async () => {
         setError("");
+
+        if (!hasPatient) {
+            setError("Select or add a patient before recording.");
+            return;
+        }
 
         if (!navigator.mediaDevices?.getUserMedia) {
             setError(
@@ -293,20 +303,6 @@ export default function UploadPanel({ onSubmit }) {
     };
     return (
         <div className="w-full max-w-2xl mx-auto">
-            <div className="flex items-center gap-3 mb-8">
-                <div className="flex h-10 w-10 items-center justify-center rounded bg-clinical-500 text-paper">
-                    <Stethoscope size={20} strokeWidth={1.75} />
-                </div>
-                <div>
-                    <h1 className="font-serif text-2xl text-ink leading-tight">
-                        MedVoice
-                    </h1>
-                    <p className="text-sm text-muted">
-                        Consultation audio to structured chart notes
-                    </p>
-                </div>
-            </div>
-
             <div className="bg-surface border border-line rounded-md shadow-panel p-8">
                 <div className="mb-6 pb-6 border-b border-line">
                     <h2 className="font-serif text-lg text-ink mb-4">
@@ -455,51 +451,55 @@ export default function UploadPanel({ onSubmit }) {
                     >
                         <option value="whisper">Whisper</option>
                         <option value="sarvam">Sarvam</option>
-                        <option value="elevenlabs">
-                            ElevenLabs
-                        </option>
+                        <option value="elevenlabs">ElevenLabs</option>
                     </select>{" "}
                 </div>
-                <h2 className="font-serif text-lg text-ink mb-1">
-                    Add a consultation recording
+                <h2 className="font-serif text-lg text-ink mb-4">
+                    add a consultation recording
                 </h2>
-                <p className="text-sm text-muted mb-6">
+                {/* <p className="text-sm text-muted mb-6">
                     Upload an audio file, or record the conversation directly in
                     your browser.
-                </p>
+                </p> */}
 
                 {!file && (
-                    <div
-                        onDragOver={(e) => {
-                            e.preventDefault();
-                            setIsDragging(true);
-                        }}
-                        onDragLeave={() => setIsDragging(false)}
-                        onDrop={onDrop}
-                        className={`rounded-md border-2 border-dashed p-10 text-center transition-colors ${
-                            isDragging
-                                ? "border-clinical-500 bg-clinical-50"
-                                : "border-line bg-paper"
-                        }`}
-                    >
-                        <UploadCloud
-                            className="mx-auto mb-3 text-clinical-500"
-                            size={28}
-                            strokeWidth={1.5}
-                        />
-                        <p className="text-sm text-ink mb-1">
-                            Drag an audio file here, or{" "}
+                    <div className="flex items-stretch gap-3">
+                        {!isRecording ? (
                             <button
                                 type="button"
-                                onClick={() => inputRef.current?.click()}
-                                className="text-clinical-600 underline underline-offset-2 hover:text-clinical-700"
+                                onClick={startRecording}
+                                disabled={!hasPatient}
+                                className="flex-[7] inline-flex items-center justify-center gap-2.5 rounded-lg bg-red-600 text-white px-5 py-3 text-base font-semibold shadow-sm hover:bg-red-700 active:bg-red-800 transition-colors disabled:cursor-not-allowed disabled:hover:bg-red-600"
                             >
-                                browse your files
+                                <Mic size={26} strokeWidth={2} />
+                                Record
                             </button>
-                        </p>
-                        <p className="text-xs text-muted">
-                            Supports {ACCEPTED_TYPES.join(", ")}
-                        </p>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={stopRecording}
+                                className="flex-[7] inline-flex items-center justify-center gap-2.5 rounded-lg bg-red-600 text-white px-5 py-3 text-base font-semibold shadow-sm hover:bg-red-700 active:bg-red-800 transition-colors "
+                            >
+                                <Square
+                                    size={22}
+                                    strokeWidth={2}
+                                    fill="currentColor"
+                                />
+                                Stop · {formatDuration(recordSeconds)}
+                            </button>
+                        )}
+
+                        {!isRecording && (
+                            <button
+                                type="button"
+                                onClick={triggerUpload}
+                                disabled={!hasPatient}
+                                className="flex-[3] inline-flex flex-col items-center justify-center gap-1.5 rounded-lg border border-line bg-paper text-ink px-3 py-3 text-xs hover:bg-clinical-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-paper"
+                            >
+                                <UploadCloud size={18} strokeWidth={1.75} />
+                                Upload
+                            </button>
+                        )}
                         <input
                             ref={inputRef}
                             type="file"
@@ -507,37 +507,12 @@ export default function UploadPanel({ onSubmit }) {
                             className="hidden"
                             onChange={(e) => handleFiles(e.target.files)}
                         />
-
-                        <div className="flex items-center gap-3 my-6">
-                            <div className="h-px flex-1 bg-line" />
-                            <span className="text-xs text-muted">or</span>
-                            <div className="h-px flex-1 bg-line" />
-                        </div>
-
-                        {!isRecording ? (
-                            <button
-                                type="button"
-                                onClick={startRecording}
-                                className="inline-flex items-center gap-2 rounded bg-ink text-paper px-4 py-2.5 text-sm hover:bg-clinical-700 transition-colors"
-                            >
-                                <Mic size={16} strokeWidth={1.75} />
-                                Record from microphone
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={stopRecording}
-                                className="inline-flex items-center gap-2 rounded bg-alert-400 text-paper px-4 py-2.5 text-sm hover:bg-alert-500 transition-colors"
-                            >
-                                <Square
-                                    size={14}
-                                    strokeWidth={1.75}
-                                    fill="currentColor"
-                                />
-                                Stop recording · {formatDuration(recordSeconds)}
-                            </button>
-                        )}
                     </div>
+                )}
+                {!file && !hasPatient && (
+                    <p className="mt-2 text-xs text-muted">
+                        Select or add a patient above to enable recording.
+                    </p>
                 )}
 
                 {file && (

@@ -17,6 +17,16 @@ import {
     OtherHistoryCard,
 } from "./sections/HistoryCards";
 import { PrescriptionCard } from "./sections/PrescriptionCards";
+
+// Treats null/undefined, empty arrays, empty objects, and blank strings as "no data".
+function isEmptyValue(v) {
+    if (v === null || v === undefined) return true;
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === "object") return Object.keys(v).length === 0;
+    if (typeof v === "string") return v.trim() === "";
+    return false;
+}
+
 export default function ResultView({ result, onReset }) {
     const [showTranscript, setShowTranscript] = useState(false);
     const data = result?.structured_data || {};
@@ -46,25 +56,121 @@ export default function ResultView({ result, onReset }) {
         );
     }
 
+    // vitals is always a fixed-length array of { name, units, value, loinc_code };
+    // unrecorded vitals come back with value: "", so filter those out before
+    // deciding whether the section has anything to show.
+    const recordedVitals = (data.vitals || []).filter(
+        (v) =>
+            v?.value !== undefined &&
+            v?.value !== null &&
+            String(v.value).trim() !== "",
+    );
+
+    const sections = [
+        {
+            label: "Vitals",
+            value: recordedVitals,
+            render: () => <VitalsCard vitals={recordedVitals} />,
+        },
+        {
+            label: "Allergies",
+            value: data.allergies,
+            render: () => <AllergiesCard allergies={data.allergies} />,
+        },
+        {
+            label: "Conditions",
+            value: data.conditions,
+            render: () => <ConditionsCard conditions={data.conditions} />,
+        },
+        {
+            label: "Medications",
+            value: data.medication_history,
+            render: () => (
+                <MedicationsCard medications={data.medication_history} />
+            ),
+        },
+        {
+            label: "Investigations",
+            value: data.investigation_history,
+            render: () => (
+                <InvestigationsCard
+                    investigations={data.investigation_history}
+                />
+            ),
+        },
+        {
+            label: "Procedures",
+            value: data.procedures,
+            render: () => <ProceduresCard procedures={data.procedures} />,
+        },
+        {
+            label: "System review",
+            value: data.system_review,
+            render: () => (
+                <SystemReviewCard systemReview={data.system_review} />
+            ),
+        },
+        {
+            label: "Family history",
+            value: data.family_history,
+            render: () => (
+                <FamilyHistoryCard familyHistory={data.family_history} />
+            ),
+        },
+        {
+            label: "Lifestyle",
+            value: data.lifestyle_habits,
+            render: () => <LifestyleCard lifestyle={data.lifestyle_habits} />,
+        },
+        {
+            label: "Social history",
+            value: data.social_history,
+            render: () => (
+                <SocialHistoryCard socialHistory={data.social_history} />
+            ),
+        },
+        {
+            label: "Other history",
+            value: data.other_history,
+            render: () => (
+                <OtherHistoryCard otherHistory={data.other_history} />
+            ),
+        },
+    ];
+
+    const filledSections = sections.filter((s) => !isEmptyValue(s.value));
+    const emptySections = sections.filter((s) => isEmptyValue(s.value));
+
     return (
         <div className="w-full max-w-5xl mx-auto">
             <TopBar onReset={onReset} language={result?.language} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <VitalsCard vitals={data.vitals} />
-                <AllergiesCard allergies={data.allergies} />
-                <ConditionsCard conditions={data.conditions} />
-                <MedicationsCard medications={data.medication_history} />
-                <InvestigationsCard
-                    investigations={data.investigation_history}
-                />
-                <ProceduresCard procedures={data.procedures} />
-                <SystemReviewCard systemReview={data.system_review} />
-                <FamilyHistoryCard familyHistory={data.family_history} />
-                <LifestyleCard lifestyle={data.lifestyle_habits} />
-                <SocialHistoryCard socialHistory={data.social_history} />
-                <OtherHistoryCard otherHistory={data.other_history} />
+            <div className="columns-1 lg:columns-2 gap-5">
+                {filledSections.map((s) => (
+                    <div key={s.label} className="break-inside-avoid mb-5">
+                        {s.render()}
+                    </div>
+                ))}
             </div>
+
+            {emptySections.length > 0 && (
+                <div className="mt-5 bg-surface border border-line rounded-md px-5 py-4">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted mb-2">
+                        Not recorded
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {emptySections.map((s) => (
+                            <span
+                                key={s.label}
+                                className="inline-flex items-center rounded-full border border-line bg-paper px-2.5 py-1 text-xs text-muted"
+                            >
+                                {s.label}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {data.prescription && (
                 <div className="mt-5">
                     <PrescriptionCard prescription={data.prescription} />
