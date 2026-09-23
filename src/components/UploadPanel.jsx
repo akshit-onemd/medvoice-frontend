@@ -8,6 +8,7 @@ import {
     Paperclip,
     FileText,
     Camera,
+    SwitchCamera,
 } from "lucide-react";
 import { API_BASE_URL } from "../api/processAudio";
 const ACCEPTED_TYPES = [".mp3", ".wav", ".m4a", ".webm", ".ogg"];
@@ -40,6 +41,7 @@ export default function UploadPanel({ onSubmit }) {
     const chunksRef = useRef([]);
     const timerRef = useRef(null);
     const [showCamera, setShowCamera] = useState(false);
+    const [facingMode, setFacingMode] = useState("environment");
     const videoRef = useRef(null);
     const cameraStreamRef = useRef(null);
     const [previewPhoto, setPreviewPhoto] = useState(null); // { blob, url }
@@ -119,20 +121,34 @@ export default function UploadPanel({ onSubmit }) {
     const removeAttachment = (i) => {
         setAttachments((prev) => prev.filter((_, idx) => idx !== i));
     };
-    const openCamera = async () => {
+    const openCamera = async (mode = facingMode) => {
         setError("");
+        cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
+        cameraStreamRef.current = null;
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "environment" },
+                video: { facingMode: mode },
             });
             cameraStreamRef.current = stream;
+            setFacingMode(mode);
             setShowCamera(true);
-            // video element isn't mounted yet on this render, so wait a tick
+            // showCamera may already be true (mid-session switch), in which case
+            // the srcObject effect below won't re-fire, so set it here too.
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                videoRef.current.play().catch((err) => {
+                    console.log("Video play() failed:", err.message);
+                });
+            }
         } catch {
             setError(
                 "Camera access was blocked. Allow it in your browser, or upload a file instead.",
             );
         }
+    };
+
+    const switchCamera = () => {
+        openCamera(facingMode === "environment" ? "user" : "environment");
     };
 
     const closeCamera = () => {
@@ -469,7 +485,7 @@ export default function UploadPanel({ onSubmit }) {
                                 type="button"
                                 onClick={startRecording}
                                 disabled={!hasPatient}
-                                className="flex-[7] inline-flex items-center justify-center gap-2.5 rounded-lg bg-red-600 text-white px-5 py-3 text-base font-semibold shadow-sm hover:bg-red-700 active:bg-red-800 transition-colors disabled:cursor-not-allowed disabled:hover:bg-red-600"
+                                className="flex-[7] inline-flex items-center justify-center gap-2.5 rounded-lg bg-red-600 text-white px-5 py-3 text-base font-semibold shadow-sm hover:bg-red-700 active:bg-red-800 transition-colors disabled:hover:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-600"
                             >
                                 <Mic size={26} strokeWidth={2} />
                                 Record
@@ -558,8 +574,8 @@ export default function UploadPanel({ onSubmit }) {
                     </label>
                     <button
                         type="button"
-                        onClick={openCamera}
-                        className="flex items-center gap-2 rounded border border-dashed border-line px-4 py-3 text-sm text-clinical-600 hover:bg-paper"
+                        onClick={() => openCamera()}
+                        className="flex items-center w-full gap-2 rounded border border-dashed border-line px-4 py-3 text-sm text-clinical-600 hover:bg-paper"
                     >
                         <Camera size={16} strokeWidth={1.75} />
                         Camera
@@ -608,6 +624,15 @@ export default function UploadPanel({ onSubmit }) {
                                 className="rounded border border-line bg-surface px-5 py-2.5 text-sm text-ink"
                             >
                                 Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={switchCamera}
+                                aria-label="Switch camera"
+                                className="rounded border border-line bg-surface px-5 py-2.5 text-sm text-ink inline-flex items-center gap-2"
+                            >
+                                <SwitchCamera size={16} strokeWidth={1.75} />
+                                Flip
                             </button>
                             <button
                                 type="button"
