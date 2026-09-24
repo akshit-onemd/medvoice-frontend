@@ -21,7 +21,7 @@ function StatusTag({ status }) {
     const key = status.toLowerCase();
     const cls = STATUS_TONE[key] || "bg-paper text-muted border border-line";
     return (
-        <span className={`rounded px-2 py-0.5 text-[11px] shrink-0 ${cls}`}>
+        <span className={`rounded px-2 py-0.5 text-sm shrink-0 ${cls}`}>
             {status}
         </span>
     );
@@ -39,7 +39,7 @@ export function MedicationsCard({ medications }) {
                     {list.map((m, i) => (
                         <li key={i} className="py-3 first:pt-0 last:pb-0">
                             <div className="flex items-start justify-between gap-2">
-                                <p className="text-sm text-ink">
+                                <p className="font-medium text-base text-ink">
                                     {m.name || "Unnamed medication"}
                                     {m.dosage && (
                                         <span className="text-muted">
@@ -101,11 +101,11 @@ export function InvestigationsCard({ investigations }) {
                     {list.map((inv, i) => (
                         <li key={i}>
                             <div className="flex items-baseline justify-between gap-2">
-                                <p className="text-sm text-ink">
+                                <p className="font-medium text-base text-ink">
                                     {inv.name || "Unnamed investigation"}
                                 </p>
                                 {inv.date && (
-                                    <span className="text-xs text-muted shrink-0">
+                                    <span className="text-sm text-muted shrink-0">
                                         {inv.date}
                                     </span>
                                 )}
@@ -124,7 +124,7 @@ export function InvestigationsCard({ investigations }) {
                                             .map((r, ri) => (
                                                 <div
                                                     key={ri}
-                                                    className="flex items-center justify-between gap-3 px-3 py-2 text-xs odd:bg-paper"
+                                                    className="flex items-center justify-between gap-3 px-3 py-2 text-sm odd:bg-paper"
                                                 >
                                                     <span className="text-ink">
                                                         {r.investigation_name}

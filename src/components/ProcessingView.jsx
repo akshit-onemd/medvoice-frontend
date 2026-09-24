@@ -5,7 +5,7 @@ import { PROCESSING_STAGES } from "../api/processAudio";
 export default function ProcessingView({ currentStage, fileName }) {
   return (
     <div className="w-full max-w-lg mx-auto">
-      <div className="bg-surface border border-line rounded-md shadow-panel p-8">
+      <div className="bg-surface border border-line rounded-md shadow-panel p-6">
         <h2 className="font-serif text-lg text-ink mb-1">Reading the consultation</h2>
         <p className="text-sm text-muted mb-8 truncate">{fileName}</p>
 

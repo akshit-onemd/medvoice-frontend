@@ -19,7 +19,7 @@ export function ConditionsCard({ conditions }) {
                 <ul className="divide-y divide-line -my-1">
                     {list.map((c, i) => (
                         <li key={i} className="py-3 first:pt-0 last:pb-0">
-                            <p className="text-sm text-ink">
+                            <p className="font-medium text-base text-ink">
                                 {c.name || "Unnamed condition"}
                             </p>
                             <CodeRow
@@ -47,7 +47,7 @@ export function ConditionsCard({ conditions }) {
                                 ]}
                             />
                             {c.notes && (
-                                <p className="text-xs text-muted mt-1.5">
+                                <p className="text-sm text-muted mt-1.5">
                                     {c.notes}
                                 </p>
                             )}
@@ -71,11 +71,11 @@ export function ProceduresCard({ procedures }) {
                     {list.map((p, i) => (
                         <li key={i} className="py-3 first:pt-0 last:pb-0">
                             <div className="flex items-baseline justify-between gap-2">
-                                <p className="text-sm text-ink">
+                                <p className="font-medium text-base text-ink">
                                     {p.name || "Unnamed procedure"}
                                 </p>
                                 {p.date && (
-                                    <span className="text-xs text-muted shrink-0">
+                                    <span className="text-sm text-muted shrink-0">
                                         {p.date}
                                     </span>
                                 )}
@@ -124,7 +124,7 @@ export function SystemReviewCard({ systemReview }) {
                 <ul className="space-y-4">
                     {list.map((s, i) => (
                         <li key={i}>
-                            <p className="text-sm text-ink mb-1.5">
+                            <p className="font-medium text-base text-ink mb-1.5">
                                 {s.name || "Unnamed system"}
                             </p>
                             {Array.isArray(s.findings) &&
@@ -155,7 +155,7 @@ export function SystemReviewCard({ systemReview }) {
                                     </div>
                                 )}
                             {s.notes && (
-                                <p className="text-xs text-muted mt-1">
+                                <p className="text-sm text-muted mt-1">
                                     {s.notes}
                                 </p>
                             )}

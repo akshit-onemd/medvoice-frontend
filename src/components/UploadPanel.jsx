@@ -54,7 +54,7 @@ export default function UploadPanel({ onSubmit }) {
     const [newAge, setNewAge] = useState("");
     const [newGender, setNewGender] = useState("");
     const [newPhone, setNewPhone] = useState("");
-    const [sttProvider, setSttProvider] = useState("whisper");
+    const [sttProvider, setSttProvider] = useState("elevenlabs");
     useEffect(() => {
         if (patientQuery.trim().length < 2) {
             setPatientResults([]);
@@ -319,19 +319,19 @@ export default function UploadPanel({ onSubmit }) {
     };
     return (
         <div className="w-full max-w-2xl mx-auto">
-            <div className="bg-surface border border-line rounded-md shadow-panel p-8">
+            <div className="bg-surface border border-line rounded-md shadow-panel p-6">
                 <div className="mb-6 pb-6 border-b border-line">
-                    <h2 className="font-serif text-lg text-ink mb-4">
+                    {/* <h2 className="font-serif text-xl text-ink mb-4">
                         Patient
-                    </h2>
+                    </h2> */}
 
                     {selectedPatient ? (
                         <div className="flex items-center gap-3 rounded border border-clinical-500 bg-clinical-50 px-4 py-3">
                             <div className="flex-1">
-                                <p className="text-sm text-ink">
+                                <p className="text-base text-ink">
                                     {selectedPatient.name}
                                 </p>
-                                <p className="text-xs text-muted">
+                                <p className="text-sm text-muted">
                                     {[
                                         selectedPatient.age &&
                                             `${selectedPatient.age}y`,
@@ -406,7 +406,7 @@ export default function UploadPanel({ onSubmit }) {
                                 onChange={(e) =>
                                     setPatientQuery(e.target.value)
                                 }
-                                className="w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
+                                className="w-full rounded border border-line bg-paper px-3 py-2 text-lg text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
                             />
                             {searchingPatient && (
                                 <p className="text-xs text-muted mt-2">
@@ -449,15 +449,15 @@ export default function UploadPanel({ onSubmit }) {
                             <button
                                 type="button"
                                 onClick={() => setShowNewPatientForm(true)}
-                                className="text-xs text-clinical-600 underline underline-offset-2 mt-2"
+                                className="text-base text-clinical-600 underline underline-offset-2 mt-2"
                             >
                                 + Add new patient
                             </button>
                         </div>
                     )}
                 </div>
-                <div className="mb-4 flex items-center gap-3">
-                    <label className="text-sm text-ink">
+                {/* <div className="mb-4 flex items-center gap-3">
+                    <label className="text-base text-ink">
                         Transcription engine
                     </label>
                     <select
@@ -469,15 +469,14 @@ export default function UploadPanel({ onSubmit }) {
                         <option value="sarvam">Sarvam</option>
                         <option value="elevenlabs">ElevenLabs</option>
                     </select>{" "}
-                </div>
-                <h2 className="font-serif text-lg text-ink mb-4">
+                </div> */}
+                {/* <h2 className="font-serif text-lg text-ink mb-4">
                     add a consultation recording
-                </h2>
+                </h2> */}
                 {/* <p className="text-sm text-muted mb-6">
                     Upload an audio file, or record the conversation directly in
                     your browser.
                 </p> */}
-
                 {!file && (
                     <div className="flex items-stretch gap-3">
                         {!isRecording ? (
@@ -488,7 +487,7 @@ export default function UploadPanel({ onSubmit }) {
                                 className="flex-[7] inline-flex items-center justify-center gap-2.5 rounded-lg bg-red-600 text-white px-5 py-3 text-base font-semibold shadow-sm hover:bg-red-700 active:bg-red-800 transition-colors disabled:hover:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-600"
                             >
                                 <Mic size={26} strokeWidth={2} />
-                                Record
+                                Start
                             </button>
                         ) : (
                             <button
@@ -530,7 +529,6 @@ export default function UploadPanel({ onSubmit }) {
                         Select or add a patient above to enable recording.
                     </p>
                 )}
-
                 {file && (
                     <div className="rounded-md border border-line bg-paper p-4 flex items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-clinical-50 text-clinical-600">
@@ -555,7 +553,7 @@ export default function UploadPanel({ onSubmit }) {
                     </div>
                 )}
                 <div className="mt-6">
-                    <p className="text-sm text-ink mb-2">
+                    <p className="text-base text-ink mb-2">
                         Attach reports or prescriptions (optional)
                     </p>
                     <label className="flex items-center gap-2 rounded border border-dashed border-line px-4 py-3 text-sm text-clinical-600 cursor-pointer hover:bg-paper">
@@ -593,7 +591,7 @@ export default function UploadPanel({ onSubmit }) {
                                         className="text-clinical-600 shrink-0"
                                         strokeWidth={1.75}
                                     />
-                                    <span className="text-xs text-ink truncate flex-1">
+                                    <span className="text-sm text-ink truncate flex-1">
                                         {a.name}
                                     </span>
                                     <button
@@ -672,11 +670,11 @@ export default function UploadPanel({ onSubmit }) {
                 {error && (
                     <p className="mt-4 text-sm text-alert-500">{error}</p>
                 )}
-
                 <button
                     type="button"
                     onClick={handleSubmit}
                     disabled={
+                        isRecording ||
                         (!file && attachments.length === 0) ||
                         (!selectedPatient &&
                             !(
@@ -685,7 +683,7 @@ export default function UploadPanel({ onSubmit }) {
                                 newPhone.trim()
                             ))
                     }
-                    className="mt-6 w-full rounded bg-clinical-500 text-paper py-3 text-sm font-medium hover:bg-clinical-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="mt-6 w-full rounded bg-clinical-500 text-paper py-3 text-base font-medium hover:bg-clinical-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                     Generate summary
                 </button>

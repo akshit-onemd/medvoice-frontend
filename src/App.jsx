@@ -65,28 +65,30 @@ export default function App() {
         stage === "idle" || stage === "records" || stage === "error";
 
     return (
-        <div className="min-h-screen bg-paper px-4 py-10 sm:py-16">
-            <div className="w-full max-w-2xl mx-auto mb-6">
-                <div className="flex items-center gap-3 mb-6">
+        <div className="min-h-screen bg-paper px-4 pt-24 pb-16">
+            <div className="fixed top-0 left-0 right-0 z-50 bg-paper border-b border-line">
+                <div className="w-full max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded bg-clinical-500 text-paper">
                         <Stethoscope size={20} strokeWidth={1.75} />
                     </div>
                     <div>
-                        <h1 className="font-serif text-2xl text-ink leading-tight">
+                        <h1 className="font-serif text-3xl text-ink leading-tight">
                             OneMD Scribe
                         </h1>
                     </div>
                 </div>
+            </div>
 
+            <div className="w-full max-w-2xl mx-auto mb-6">
                 {showNav && (
-                    <div className="flex gap-2">
+                    <div className="flex gap-6 border-b border-line">
                         <button
                             type="button"
                             onClick={reset}
-                            className={`inline-flex w-full justify-center items-center gap-2 rounded px-3.5 py-2 text-sm transition-colors ${
+                            className={`w-full justify-center inline-flex items-center gap-2 pb-3 text-sm border-b-2 transition-colors ${
                                 stage === "idle" || stage === "error"
-                                    ? "bg-clinical-500 text-paper"
-                                    : "border border-line bg-surface text-ink hover:bg-clinical-50"
+                                    ? "border-clinical-500 text-clinical-600 font-medium"
+                                    : "border-transparent text-muted hover:text-ink"
                             }`}
                         >
                             <Plus size={14} strokeWidth={1.75} />
@@ -95,10 +97,10 @@ export default function App() {
                         <button
                             type="button"
                             onClick={goToRecords}
-                            className={`w-full justify-center inline-flex items-center gap-2 rounded px-3.5 py-2 text-sm transition-colors ${
+                            className={`w-full justify-center inline-flex items-center gap-2 pb-3 text-sm border-b-2 transition-colors ${
                                 stage === "records"
-                                    ? "bg-clinical-500 text-paper"
-                                    : "border border-line bg-surface text-ink hover:bg-clinical-50"
+                                    ? "border-clinical-500 text-clinical-600 font-medium"
+                                    : "border-transparent text-muted hover:text-ink"
                             }`}
                         >
                             <Users size={14} strokeWidth={1.75} />
@@ -107,7 +109,6 @@ export default function App() {
                     </div>
                 )}
             </div>
-
             {stage === "idle" && <UploadPanel onSubmit={handleSubmit} />}
             {stage === "processing" && (
                 <ProcessingView

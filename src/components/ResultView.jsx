@@ -17,6 +17,7 @@ import {
     OtherHistoryCard,
 } from "./sections/HistoryCards";
 import { PrescriptionCard } from "./sections/PrescriptionCards";
+import { AIOverviewCard, SummaryCard } from "./sections/shared";
 
 // Treats null/undefined, empty arrays, empty objects, and blank strings as "no data".
 function isEmptyValue(v) {
@@ -26,7 +27,6 @@ function isEmptyValue(v) {
     if (typeof v === "string") return v.trim() === "";
     return false;
 }
-
 export default function ResultView({ result, onReset }) {
     const [showTranscript, setShowTranscript] = useState(false);
     const data = result?.structured_data || {};
@@ -40,7 +40,7 @@ export default function ResultView({ result, onReset }) {
         return (
             <div className="w-full max-w-2xl mx-auto">
                 <TopBar onReset={onReset} language={result?.language} />
-                <div className="bg-surface border border-line rounded-md shadow-panel p-6">
+                <div className="bg-surface border border-line rounded-md shadow-panel p-2">
                     <h2 className="font-serif text-lg text-ink mb-2">
                         Couldn't structure this response
                     </h2>
@@ -142,10 +142,28 @@ export default function ResultView({ result, onReset }) {
     const emptySections = sections.filter((s) => isEmptyValue(s.value));
 
     return (
-        <div className="w-full max-w-5xl mx-auto">
+        // <div className="w-full max-w-5xl mx-auto">
+        <div className="w-full max-w-2xl mx-auto">
             <TopBar onReset={onReset} language={result?.language} />
-
-            <div className="columns-1 lg:columns-2 gap-5">
+            {(data.consultation_summary?.overview ||
+                data.consultation_summary?.details?.length > 0) && (
+                <div className="mb-5">
+                    <AIOverviewCard
+                        overview={data.consultation_summary?.overview}
+                        details={data.consultation_summary?.details}
+                    />
+                </div>
+            )}
+            {/* {!isEmptyValue(data.consultation_summary) && (
+                <div className="mb-5">
+                    <AIOverviewCard
+                        overview={data.consultation_summary.overview}
+                        details={data.consultation_summary.details}
+                    />
+                </div>
+            )} */}
+            {/* <div className="columns-1 lg:columns-2 gap-5"> */}
+            <div className="columns-1 gap-5">
                 {filledSections.map((s) => (
                     <div key={s.label} className="break-inside-avoid mb-5">
                         {s.render()}
@@ -155,14 +173,14 @@ export default function ResultView({ result, onReset }) {
 
             {emptySections.length > 0 && (
                 <div className="mt-5 bg-surface border border-line rounded-md px-5 py-4">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted mb-2">
+                    <p className="font-serif text-base text-ink leading-tight mb-4">
                         Not recorded
                     </p>
                     <div className="flex flex-wrap gap-2">
                         {emptySections.map((s) => (
                             <span
                                 key={s.label}
-                                className="inline-flex items-center rounded-full border border-line bg-paper px-2.5 py-1 text-xs text-muted"
+                                className="inline-flex items-center rounded-full border border-line bg-paper px-2.5 py-1 text-sm"
                             >
                                 {s.label}
                             </span>
@@ -176,11 +194,11 @@ export default function ResultView({ result, onReset }) {
                     <PrescriptionCard prescription={data.prescription} />
                 </div>
             )}
-            {result?.saved && (
+            {/* {result?.saved && (
                 <p className="text-xs text-muted mt-1">
                     Saved to {result.saved.patient_name}'s record
                 </p>
-            )}
+            )} */}
             {result?.transcript && (
                 <div className="mt-5 bg-surface border border-line rounded-md shadow-panel">
                     <button
@@ -197,12 +215,38 @@ export default function ResultView({ result, onReset }) {
                         />
                     </button>
                     {showTranscript && (
-                        <div className="px-6 pb-6">
-                            <p className="text-sm text-ink/80 leading-relaxed whitespace-pre-wrap">
-                                {result.diarizedTranscript || result.transcript}
-                            </p>
+                        <div className="px-6 pb-6 space-y-2">
+                            {result.diarizedTranscript ? (
+                                result.diarizedTranscript
+                                    .split("\n")
+                                    .map((line, i) => {
+                                        const match =
+                                            line.match(/^([^:]+):\s*(.*)$/);
+                                        return (
+                                            <p
+                                                key={i}
+                                                className="text-sm text-ink/80 leading-relaxed"
+                                            >
+                                                {match ? (
+                                                    <>
+                                                        <span className="font-medium text-ink">
+                                                            {match[1]}:
+                                                        </span>{" "}
+                                                        {match[2]}
+                                                    </>
+                                                ) : (
+                                                    line
+                                                )}
+                                            </p>
+                                        );
+                                    })
+                            ) : (
+                                <p className="text-sm text-ink/80 leading-relaxed whitespace-pre-wrap">
+                                    {result.transcript}
+                                </p>
+                            )}
                         </div>
-                    )}
+                    )}{" "}
                 </div>
             )}
         </div>
@@ -220,11 +264,11 @@ function TopBar({ onReset, language }) {
                     <h1 className="font-serif text-xl text-ink leading-tight">
                         Consultation summary
                     </h1>
-                    {language && (
+                    {/* {language && (
                         <p className="text-xs text-muted">
                             Detected language: {language.toUpperCase()}
                         </p>
-                    )}
+                    )} */}
                 </div>
             </div>
             <button

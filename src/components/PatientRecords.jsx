@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { ChevronLeft, FileClock, Stethoscope, User } from "lucide-react";
 import ResultView from "./ResultView";
+import { AIOverviewCard, SummaryCard } from "./sections/shared";
 import {
     searchPatients,
     getPatientConsultations,
+    getPatientSummary,
     getConsultation,
 } from "../api/processAudio";
 
@@ -16,6 +18,11 @@ export default function PatientRecords() {
     const [loadingConsultations, setLoadingConsultations] = useState(false);
     const [activeResult, setActiveResult] = useState(null);
     const [loadingRecord, setLoadingRecord] = useState(false);
+    const [patientSummary, setPatientSummary] = useState({
+        overview: "",
+        details: [],
+    });
+    const [loadingSummary, setLoadingSummary] = useState(false);
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -43,13 +50,18 @@ export default function PatientRecords() {
         setActiveResult(null);
         setError("");
         setLoadingConsultations(true);
-        try {
-            setConsultations(await getPatientConsultations(p.id));
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoadingConsultations(false);
-        }
+        setLoadingSummary(true);
+        setPatientSummary([]);
+
+        getPatientConsultations(p.id)
+            .then(setConsultations)
+            .catch((err) => setError(err.message))
+            .finally(() => setLoadingConsultations(false));
+
+        getPatientSummary(p.id)
+            .then(setPatientSummary)
+            .catch(() => setPatientSummary({ overview: "", details: [] }))
+            .finally(() => setLoadingSummary(false));
     };
 
     const openConsultation = async (id) => {
@@ -90,15 +102,15 @@ export default function PatientRecords() {
                 </div>
             </div> */}
 
-            <div className="bg-surface border border-line rounded-md shadow-panel p-8">
+            <div className="bg-surface border border-line rounded-md shadow-panel p-2">
                 {selectedPatient ? (
                     <>
                         <div className="flex items-center gap-3 rounded border border-clinical-500 bg-clinical-50 px-4 py-3 mb-6">
                             <div className="flex-1">
-                                <p className="text-sm text-ink">
+                                <p className="text-base text-ink">
                                     {selectedPatient.name}
                                 </p>
-                                <p className="text-xs text-muted">
+                                <p className="text-sm text-muted">
                                     {[
                                         selectedPatient.age &&
                                             `${selectedPatient.age}y`,
@@ -123,7 +135,21 @@ export default function PatientRecords() {
                                 </span>
                             </button>
                         </div>
-
+                        {loadingSummary && (
+                            <p className="text-sm text-muted mb-4">
+                                Loading summary…
+                            </p>
+                        )}
+                        {!loadingSummary &&
+                            (patientSummary.overview ||
+                                patientSummary.details?.length > 0) && (
+                                <div className="mb-6">
+                                    <AIOverviewCard
+                                        overview={patientSummary.overview}
+                                        details={patientSummary.details}
+                                    />
+                                </div>
+                            )}
                         {loadingConsultations && (
                             <p className="text-sm text-muted">
                                 Loading records…
@@ -156,11 +182,11 @@ export default function PatientRecords() {
                                                 strokeWidth={1.75}
                                             />
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-sm text-ink truncate">
+                                                <p className="text-base text-ink truncate">
                                                     {c.summary ||
                                                         "Consultation"}
                                                 </p>
-                                                <p className="text-xs text-muted">
+                                                <p className="text-sm text-muted">
                                                     {new Date(c.created_at)
                                                         .toLocaleString(
                                                             "en-IN",
@@ -193,7 +219,7 @@ export default function PatientRecords() {
                                 className="text-clinical-600"
                                 strokeWidth={1.75}
                             />
-                            <h2 className="font-serif text-lg text-ink">
+                            <h2 className="font-serif text-xl text-ink">
                                 Find a patient
                             </h2>
                         </div>

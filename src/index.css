@@ -4,6 +4,8 @@
 
 html {
   -webkit-font-smoothing: antialiased;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -22,6 +24,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

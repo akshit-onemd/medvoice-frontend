@@ -19,7 +19,7 @@ export function FamilyHistoryCard({ familyHistory }) {
                 <ul className="divide-y divide-line -my-1">
                     {list.map((f, i) => (
                         <li key={i} className="py-3 first:pt-0 last:pb-0">
-                            <p className="text-sm text-ink">
+                            <p className="font-medium text-base text-ink">
                                 {f.relationship || "Family member"}
                             </p>
                             {Array.isArray(f.illness) &&
@@ -125,7 +125,7 @@ export function FamilyHistoryCard({ familyHistory }) {
                                     </div>
                                 )}{" "}
                             {f.notes && (
-                                <p className="text-xs text-muted mt-1">
+                                <p className="text-sm text-muted mt-1">
                                     {f.notes}
                                 </p>
                             )}
@@ -152,7 +152,7 @@ export function LifestyleCard({ lifestyle }) {
                 <ul className="divide-y divide-line -my-1">
                     {list.map((l, i) => (
                         <li key={i} className="py-3 first:pt-0 last:pb-0">
-                            <p className="text-sm text-ink">
+                            <p className="font-medium text-base text-ink">
                                 {l.name || "Unnamed habit"}
                             </p>
                             <CodeRow
@@ -174,7 +174,7 @@ export function LifestyleCard({ lifestyle }) {
                                 ]}
                             />
                             {l.notes && (
-                                <p className="text-xs text-muted mt-1.5">
+                                <p className="text-sm text-muted mt-1.5">
                                     {l.notes}
                                 </p>
                             )}
@@ -197,7 +197,9 @@ export function SocialHistoryCard({ socialHistory }) {
                 <ul className="space-y-2.5">
                     {list.map((s, i) => (
                         <li key={i}>
-                            <p className="text-sm text-ink">{s.name}</p>
+                            <p className="font-medium text-base text-ink">
+                                {s.name}
+                            </p>
                             <CodeRow
                                 codes={[
                                     {
@@ -209,7 +211,7 @@ export function SocialHistoryCard({ socialHistory }) {
                                 ]}
                             />
                             {s.notes && (
-                                <p className="text-xs text-muted mt-0.5">
+                                <p className="text-sm text-muted mt-0.5">
                                     {s.notes}
                                 </p>
                             )}
@@ -230,9 +232,11 @@ export function OtherHistoryCard({ otherHistory }) {
             <ul className="space-y-2.5">
                 {list.map((o, i) => (
                     <li key={i}>
-                        <p className="text-sm text-ink">{o.name}</p>
+                        <p className="font-medium text-base text-ink">
+                            {o.name}
+                        </p>
                         {o.notes && (
-                            <p className="text-xs text-muted mt-0.5">
+                            <p className="text-sm text-muted mt-0.5">
                                 {o.notes}
                             </p>
                         )}

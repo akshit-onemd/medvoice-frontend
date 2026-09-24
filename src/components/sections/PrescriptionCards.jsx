@@ -13,7 +13,7 @@ function SubSection({ icon: Icon, label, tone, children }) {
         <div className="rounded-md border border-line overflow-hidden">
             <div className={`flex items-center gap-2 px-4 py-2 ${tone}`}>
                 <Icon size={14} strokeWidth={1.75} />
-                <span className="text-xs font-medium uppercase tracking-wide">
+                <span className="text-sm font-medium uppercase tracking-wide">
                     {label}
                 </span>
             </div>
@@ -53,7 +53,9 @@ export function PrescriptionCard({ prescription }) {
                         <ul className="space-y-3">
                             {diagnosis.map((d, i) => (
                                 <li key={i}>
-                                    <p className="text-sm text-ink">{d.name}</p>
+                                    <p className="font-medium text-base text-ink">
+                                        {d.name}
+                                    </p>
                                     <CodeRow
                                         codes={[
                                             {
@@ -92,7 +94,9 @@ export function PrescriptionCard({ prescription }) {
                                     key={i}
                                     className="py-2.5 first:pt-0 last:pb-0"
                                 >
-                                    <p className="text-sm text-ink">{s.name}</p>
+                                    <p className="font-medium text-base text-ink">
+                                        {s.name}
+                                    </p>
                                     <CodeRow
                                         codes={[
                                             {
@@ -122,7 +126,7 @@ export function PrescriptionCard({ prescription }) {
                                         ]}
                                     />
                                     {s.notes && (
-                                        <p className="text-xs text-muted mt-1">
+                                        <p className="text-sm text-muted mt-1">
                                             {s.notes}
                                         </p>
                                     )}
@@ -144,7 +148,9 @@ export function PrescriptionCard({ prescription }) {
                                     key={i}
                                     className="py-2.5 first:pt-0 last:pb-0"
                                 >
-                                    <p className="text-sm text-ink">{m.name}</p>
+                                    <p className="font-medium text-base text-ink">
+                                        {m.name}
+                                    </p>
                                     <CodeRow
                                         codes={[
                                             {
@@ -174,7 +180,7 @@ export function PrescriptionCard({ prescription }) {
                                         ]}
                                     />
                                     {m.instructions && (
-                                        <p className="text-xs text-muted mt-1">
+                                        <p className="text-sm text-muted mt-1">
                                             {m.instructions}
                                         </p>
                                     )}
@@ -206,7 +212,7 @@ export function PrescriptionCard({ prescription }) {
                                         ]}
                                     />
                                     {f.advice && (
-                                        <p className="text-sm text-ink mt-1">
+                                        <p className="font-medium text-base text-ink mt-1">
                                             {f.advice}
                                         </p>
                                     )}

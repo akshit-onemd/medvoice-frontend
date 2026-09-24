@@ -17,7 +17,7 @@ export function VitalsCard({ vitals }) {
                             key={i}
                             className="rounded border border-line bg-paper px-3 py-2.5"
                         >
-                            <p className="text-[11px] text-muted leading-snug">
+                            <p className="text-sm leading-snug">
                                 {v.name}
                                 {v.loinc_code && (
                                     <span className="font-mono ml-1 opacity-60">
@@ -25,7 +25,7 @@ export function VitalsCard({ vitals }) {
                                     </span>
                                 )}
                             </p>{" "}
-                            <p className="text-lg font-serif text-ink leading-tight mt-0.5">
+                            <p className="text-xl font-serif text-ink leading-tight mt-0.5">
                                 {v.value}
                                 {v.units && (
                                     <span className="text-xs text-muted font-sans ml-1">
@@ -59,7 +59,7 @@ export function AllergiesCard({ allergies }) {
                         <li key={i} className="flex items-start gap-2.5">
                             <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-alert-400 shrink-0" />
                             <div>
-                                <p className="text-sm text-ink">
+                                <p className="font-medium text-base text-ink">
                                     {a.name || "Unnamed allergy"}
                                 </p>
                                 <CodeRow
@@ -81,7 +81,7 @@ export function AllergiesCard({ allergies }) {
                                     ]}
                                 />
                                 {a.notes && (
-                                    <p className="text-xs text-muted mt-1">
+                                    <p className="text-sm text-muted mt-1">
                                         {a.notes}
                                     </p>
                                 )}

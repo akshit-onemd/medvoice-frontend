@@ -36,9 +36,7 @@ export function SectionCard({
                 >
                     <Icon size={16} strokeWidth={1.75} />
                 </div>
-                <h3 className="font-serif text-base text-ink flex-1">
-                    {title}
-                </h3>
+                <h3 className="font-serif text-xl text-ink flex-1">{title}</h3>
                 {typeof count === "number" && (
                     <span className="text-xs text-muted tabular-nums">
                         {count}
@@ -60,7 +58,7 @@ export function MetaRow({ items }) {
     return (
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
             {visible.map((item) => (
-                <span key={item.label} className="text-xs text-muted">
+                <span key={item.label} className="text-sm text-muted">
                     {item.label}:{" "}
                     <span className="text-ink/80">{item.value}</span>
                 </span>
@@ -71,7 +69,7 @@ export function MetaRow({ items }) {
 
 export function Chip({ children }) {
     return (
-        <span className="inline-block rounded bg-paper border border-line px-2 py-0.5 text-xs text-ink mr-1.5 mb-1.5">
+        <span className="inline-block rounded bg-paper border border-line px-2 py-0.5 text-sm text-ink mr-1.5 mb-1.5">
             {children}
         </span>
     );
@@ -96,7 +94,7 @@ export function CodeTag({ system, code, term, verified, corrected }) {
             : "Not yet verified";
     return (
         <span
-            className="inline-flex items-center gap-1 rounded border border-line bg-surface px-1.5 py-0.5 text-[10px] font-mono text-muted mr-1.5 mb-1.5 align-middle"
+            className="inline-flex items-center gap-1 rounded border border-line bg-surface px-1.5 py-0.5 text-xs font-mono text-muted mr-1.5 mb-1.5 align-middle"
             title={title}
         >
             {icon}
@@ -120,6 +118,95 @@ export function CodeRow({ codes }) {
                     corrected={c.corrected}
                 />
             ))}
+        </div>
+    );
+}
+export function SummaryCard({ title, summary }) {
+    return (
+        <div className="bg-surface border border-line rounded-md shadow-panel px-6 py-5">
+            <h2 className="font-serif text-xl text-ink mb-3">{title}</h2>
+            <ul className="space-y-1.5">
+                {summary.map((line, i) => (
+                    <li
+                        key={i}
+                        className="text-sm text-ink/80 leading-relaxed flex gap-2"
+                    >
+                        <span className="text-muted select-none">&bull;</span>
+                        <span>{line}</span>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+import { useState } from "react";
+import { Sparkles, ChevronDown } from "lucide-react";
+
+export function AIOverviewCard({ overview, details }) {
+    const [expanded, setExpanded] = useState(false);
+    const hasDetails = details?.length > 0;
+
+    return (
+        <div
+            onClick={hasDetails ? () => setExpanded((v) => !v) : undefined}
+            role={hasDetails ? "button" : undefined}
+            tabIndex={hasDetails ? 0 : undefined}
+            onKeyDown={
+                hasDetails
+                    ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setExpanded((v) => !v);
+                          }
+                      }
+                    : undefined
+            }
+            className={`bg-surface border border-line rounded-md shadow-panel px-6 py-5 ${
+                hasDetails ? "cursor-pointer select-none" : ""
+            }`}
+        >
+            <div className="flex items-center gap-2 mb-3">
+                <Sparkles
+                    size={16}
+                    className="text-clinical-600"
+                    strokeWidth={1.75}
+                />
+                <span className="text-xs font-medium uppercase tracking-wide text-clinical-600">
+                    AI Overview
+                </span>
+            </div>
+
+            {overview && (
+                <p className="text-sm text-ink leading-relaxed mb-3">
+                    {overview}
+                </p>
+            )}
+
+            {expanded && hasDetails && (
+                <ul className="space-y-1.5 mb-3 pt-3 border-t border-line">
+                    {details.map((line, i) => (
+                        <li
+                            key={i}
+                            className="text-sm text-ink/80 leading-relaxed flex gap-2"
+                        >
+                            <span className="text-muted select-none">
+                                &bull;
+                            </span>
+                            <span>{line}</span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {hasDetails && (
+                <span className="inline-flex items-center gap-1 text-xs text-clinical-600">
+                    {expanded ? "Show less" : "Show more"}
+                    <ChevronDown
+                        size={12}
+                        className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+                    />
+                </span>
+            )}
         </div>
     );
 }

@@ -53,7 +53,12 @@ export async function getConsultation(consultationId) {
     if (!res.ok) throw new Error("Failed to load consultation");
     return res.json();
 }
-
+export async function getPatientSummary(patientId) {
+    const res = await fetch(`${API_BASE_URL}/patients/${patientId}/summary`);
+    if (!res.ok) throw new Error("Failed to load patient summary");
+    const data = await res.json();
+    return data.patient_summary || { overview: "", details: [] };
+}
 /**
  * Uploads an audio file to the backend and reports simulated stage
  * progress via onStageChange(stageIndex) while the real request is
@@ -63,7 +68,7 @@ export async function processAudio(
     file,
     attachments = [],
     patientInfo,
-    sttProvider = "whisper",
+    sttProvider = "elevenlabs",
     onStageChange,
 ) {
     const formData = new FormData();
