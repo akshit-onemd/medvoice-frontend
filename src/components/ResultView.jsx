@@ -1,11 +1,5 @@
-import React, { useState } from "react";
-import {
-    ArrowLeft,
-    ChevronDown,
-    RotateCcw,
-    Stethoscope,
-    Download,
-} from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ArrowLeft, ChevronDown, Download, Pencil } from "lucide-react";
 import { VitalsCard, AllergiesCard } from "./sections/VitalsAndAllergies";
 import {
     ConditionsCard,
@@ -26,6 +20,7 @@ import { PrescriptionCard } from "./sections/PrescriptionCards";
 import { AIOverviewCard, SummaryCard } from "./sections/shared";
 import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
 import BrandMark from "./BrandMark";
+import PrescriptionEditor from "./PrescriptionEditor";
 
 // Treats null/undefined, empty arrays, empty objects, and blank strings as "no data".
 function isEmptyValue(v) {
@@ -36,9 +31,17 @@ function isEmptyValue(v) {
     return false;
 }
 export default function ResultView({ result, onReset }) {
+    const [rx, setRx] = useState(result?.structured_data?.prescription || null);
+    const [editingRx, setEditingRx] = useState(false);
+
+    useEffect(() => {
+        setRx(result?.structured_data?.prescription || null);
+        setEditingRx(false);
+    }, [result]);
     const [showTranscript, setShowTranscript] = useState(false);
     const data = result?.structured_data || {};
-
+    const consultationId = result?.saved?.consultation_id;
+    const canEdit = !!consultationId && !data.raw_response;
     // If the model failed to return valid JSON, the backend falls back
     // to { raw_response: "..." }. Show that plainly instead of an empty chart.
     if (
@@ -50,7 +53,12 @@ export default function ResultView({ result, onReset }) {
                 <TopBar
                     onReset={onReset}
                     language={result?.language}
-                    onDownload={() => downloadConsultationPdf(result)}
+                    onDownload={() =>
+                        downloadConsultationPdf({
+                            ...result,
+                            structured_data: { ...data, prescription: rx },
+                        })
+                    }
                 />
                 <div className="bg-surface border border-line rounded-md shadow-panel p-2">
                     <h2 className="font-serif text-lg text-ink mb-2">
@@ -159,7 +167,12 @@ export default function ResultView({ result, onReset }) {
             <TopBar
                 onReset={onReset}
                 language={result?.language}
-                onDownload={() => downloadConsultationPdf(result)}
+                onDownload={() =>
+                    downloadConsultationPdf({
+                        ...result,
+                        structured_data: { ...data, prescription: rx },
+                    })
+                }
             />
             {(data.consultation_summary?.overview ||
                 data.consultation_summary?.details?.length > 0) && (
@@ -203,9 +216,35 @@ export default function ResultView({ result, onReset }) {
                     </div>
                 </div>
             )}
-            {data.prescription && (
+            {editingRx ? (
                 <div className="mt-5">
-                    <PrescriptionCard prescription={data.prescription} />
+                    <PrescriptionEditor
+                        consultationId={consultationId}
+                        prescription={rx}
+                        onSaved={(saved) => {
+                            setRx(saved);
+                            setEditingRx(false);
+                        }}
+                        onCancel={() => setEditingRx(false)}
+                    />
+                </div>
+            ) : (
+                <div className="mt-5">
+                    {canEdit && (
+                        <div className="flex justify-end mb-2">
+                            <button
+                                type="button"
+                                onClick={() => setEditingRx(true)}
+                                className="inline-flex items-center gap-1.5 rounded border border-line bg-surface px-3 py-1.5 text-xs text-ink hover:bg-paper transition-colors"
+                            >
+                                <Pencil size={12} strokeWidth={1.75} />
+                                {rx
+                                    ? "Edit prescription & plan"
+                                    : "Add prescription & plan"}
+                            </button>
+                        </div>
+                    )}
+                    {rx && <PrescriptionCard prescription={rx} />}
                 </div>
             )}
             {/* {result?.saved && (

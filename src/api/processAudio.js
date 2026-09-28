@@ -184,3 +184,16 @@ export async function saveDoctorProfile(profile) {
     doctorProfileCache = body.profile;
     return body.profile;
 }
+export async function updatePrescription(consultationId, prescription) {
+    const res = await authFetch(
+        `${API_BASE_URL}/consultations/${consultationId}/prescription`,
+        {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prescription }),
+        },
+    );
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "Failed to save changes");
+    return body.prescription;
+}
