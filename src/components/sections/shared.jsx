@@ -59,7 +59,7 @@ export function MetaRow({ items }) {
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
             {visible.map((item) => (
                 <span key={item.label} className="text-sm text-muted">
-                    {item.label}:{" "}
+                    {item.label}:
                     <span className="text-ink/80">{item.value}</span>
                 </span>
             ))}

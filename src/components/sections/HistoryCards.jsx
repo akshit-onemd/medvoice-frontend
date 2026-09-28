@@ -123,7 +123,7 @@ export function FamilyHistoryCard({ familyHistory }) {
                                             );
                                         })}
                                     </div>
-                                )}{" "}
+                                )}
                             {f.notes && (
                                 <p className="text-sm text-muted mt-1">
                                     {f.notes}

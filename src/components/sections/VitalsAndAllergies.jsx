@@ -24,7 +24,7 @@ export function VitalsCard({ vitals }) {
                                         · {v.loinc_code}
                                     </span>
                                 )}
-                            </p>{" "}
+                            </p>
                             <p className="text-xl font-serif text-ink leading-tight mt-0.5">
                                 {v.value}
                                 {v.units && (
@@ -85,7 +85,7 @@ export function AllergiesCard({ allergies }) {
                                         {a.notes}
                                     </p>
                                 )}
-                            </div>{" "}
+                            </div>
                         </li>
                     ))}
                 </ul>

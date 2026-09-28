@@ -10,7 +10,8 @@ import {
     Camera,
     SwitchCamera,
 } from "lucide-react";
-import { API_BASE_URL } from "../api/processAudio";
+import { API_BASE_URL, authFetch } from "../api/processAudio";
+import SearchInput from "./SearchInput";
 const ACCEPTED_TYPES = [".mp3", ".wav", ".m4a", ".webm", ".ogg"];
 
 function formatSize(bytes) {
@@ -56,25 +57,34 @@ export default function UploadPanel({ onSubmit }) {
     const [newPhone, setNewPhone] = useState("");
     const [sttProvider, setSttProvider] = useState("elevenlabs");
     useEffect(() => {
-        if (patientQuery.trim().length < 2) {
+        const q = patientQuery.trim();
+        if (q.length < 2) {
             setPatientResults([]);
+            setSearchingPatient(false);
             return;
         }
         setSearchingPatient(true);
+        const controller = new AbortController();
         const handle = setTimeout(async () => {
             try {
-                const res = await fetch(
-                    `${API_BASE_URL}/patients/search?query=${encodeURIComponent(patientQuery.trim())}`,
+                const res = await authFetch(
+                    `${API_BASE_URL}/patients/search?query=${encodeURIComponent(q)}`,
+                    { signal: controller.signal },
                 );
+                if (!res.ok) throw new Error(`Search failed (${res.status})`);
                 const data = await res.json();
                 setPatientResults(data.patients || []);
-            } catch {
+            } catch (err) {
+                if (err.name === "AbortError") return; // superseded by a newer keystroke
                 setPatientResults([]);
             } finally {
-                setSearchingPatient(false);
+                if (!controller.signal.aborted) setSearchingPatient(false);
             }
-        }, 350);
-        return () => clearTimeout(handle);
+        }, 300);
+        return () => {
+            clearTimeout(handle);
+            controller.abort();
+        };
     }, [patientQuery]);
     useEffect(() => {
         return () => {
@@ -399,7 +409,7 @@ export default function UploadPanel({ onSubmit }) {
                         </div>
                     ) : (
                         <div>
-                            <input
+                            {/* <input
                                 type="text"
                                 placeholder="Search by name or phone"
                                 value={patientQuery}
@@ -407,6 +417,13 @@ export default function UploadPanel({ onSubmit }) {
                                     setPatientQuery(e.target.value)
                                 }
                                 className="w-full rounded border border-line bg-paper px-3 py-2 text-lg text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
+                            /> */}
+                            <SearchInput
+                                value={patientQuery}
+                                onChange={setPatientQuery}
+                                placeholder="Search by name or phone"
+                                disabled={isRecording}
+                                inputClassName="w-full rounded border border-line bg-paper px-3 py-2 text-lg text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
                             />
                             {searchingPatient && (
                                 <p className="text-xs text-muted mt-2">
@@ -468,7 +485,7 @@ export default function UploadPanel({ onSubmit }) {
                         <option value="whisper">Whisper</option>
                         <option value="sarvam">Sarvam</option>
                         <option value="elevenlabs">ElevenLabs</option>
-                    </select>{" "}
+                    </select>
                 </div> */}
                 {/* <h2 className="font-serif text-lg text-ink mb-4">
                     add a consultation recording

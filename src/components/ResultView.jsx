@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { ArrowLeft, ChevronDown, RotateCcw, Stethoscope } from "lucide-react";
+import {
+    ArrowLeft,
+    ChevronDown,
+    RotateCcw,
+    Stethoscope,
+    Download,
+} from "lucide-react";
 import { VitalsCard, AllergiesCard } from "./sections/VitalsAndAllergies";
 import {
     ConditionsCard,
@@ -18,6 +24,8 @@ import {
 } from "./sections/HistoryCards";
 import { PrescriptionCard } from "./sections/PrescriptionCards";
 import { AIOverviewCard, SummaryCard } from "./sections/shared";
+import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
+import BrandMark from "./BrandMark";
 
 // Treats null/undefined, empty arrays, empty objects, and blank strings as "no data".
 function isEmptyValue(v) {
@@ -39,7 +47,11 @@ export default function ResultView({ result, onReset }) {
     ) {
         return (
             <div className="w-full max-w-2xl mx-auto">
-                <TopBar onReset={onReset} language={result?.language} />
+                <TopBar
+                    onReset={onReset}
+                    language={result?.language}
+                    onDownload={() => downloadConsultationPdf(result)}
+                />
                 <div className="bg-surface border border-line rounded-md shadow-panel p-2">
                     <h2 className="font-serif text-lg text-ink mb-2">
                         Couldn't structure this response
@@ -144,7 +156,11 @@ export default function ResultView({ result, onReset }) {
     return (
         // <div className="w-full max-w-5xl mx-auto">
         <div className="w-full max-w-2xl mx-auto">
-            <TopBar onReset={onReset} language={result?.language} />
+            <TopBar
+                onReset={onReset}
+                language={result?.language}
+                onDownload={() => downloadConsultationPdf(result)}
+            />
             {(data.consultation_summary?.overview ||
                 data.consultation_summary?.details?.length > 0) && (
                 <div className="mb-5">
@@ -170,7 +186,6 @@ export default function ResultView({ result, onReset }) {
                     </div>
                 ))}
             </div>
-
             {emptySections.length > 0 && (
                 <div className="mt-5 bg-surface border border-line rounded-md px-5 py-4">
                     <p className="font-serif text-base text-ink leading-tight mb-4">
@@ -188,7 +203,6 @@ export default function ResultView({ result, onReset }) {
                     </div>
                 </div>
             )}
-
             {data.prescription && (
                 <div className="mt-5">
                     <PrescriptionCard prescription={data.prescription} />
@@ -231,7 +245,7 @@ export default function ResultView({ result, onReset }) {
                                                     <>
                                                         <span className="font-medium text-ink">
                                                             {match[1]}:
-                                                        </span>{" "}
+                                                        </span>
                                                         {match[2]}
                                                     </>
                                                 ) : (
@@ -246,22 +260,23 @@ export default function ResultView({ result, onReset }) {
                                 </p>
                             )}
                         </div>
-                    )}{" "}
+                    )}
                 </div>
             )}
         </div>
     );
 }
 
-function TopBar({ onReset, language }) {
+function TopBar({ onReset, language, onDownload }) {
     return (
         <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded bg-clinical-500 text-paper">
+                {/* <div className="flex h-9 w-9 items-center justify-center rounded bg-clinical-500 text-paper">
                     <Stethoscope size={18} strokeWidth={1.75} />
-                </div>
+                </div> */}
+                {/* <BrandMark /> */}
                 <div>
-                    <h1 className="font-serif text-xl text-ink leading-tight">
+                    <h1 className="font-serif text-xl sm:text-2xl text-ink leading-tight">
                         Consultation summary
                     </h1>
                     {/* {language && (
@@ -271,14 +286,28 @@ function TopBar({ onReset, language }) {
                     )} */}
                 </div>
             </div>
-            <button
-                type="button"
-                onClick={onReset}
-                className="inline-flex items-center gap-2 rounded border border-line bg-surface px-3.5 py-2 text-sm text-ink hover:bg-paper transition-colors"
-            >
-                <ArrowLeft size={14} strokeWidth={1.75} />
-                Go Back
-            </button>
+            <div className="flex items-center gap-2">
+                {onDownload && (
+                    <button
+                        type="button"
+                        onClick={onDownload}
+                        className="inline-flex items-center gap-2 rounded bg-clinical-500 px-2.5 py-2.5 text-sm text-paper hover:bg-clinical-600 transition-colors"
+                    >
+                        <Download size={16} strokeWidth={1.75} />
+                        <span className="hidden sm:inline">
+                            Download Summary
+                        </span>
+                    </button>
+                )}
+                <button
+                    type="button"
+                    onClick={onReset}
+                    className="inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-2.5 text-sm text-ink hover:bg-paper transition-colors"
+                >
+                    <ArrowLeft size={16} strokeWidth={1.75} />
+                    <span className="hidden sm:inline">Go Back</span>
+                </button>
+            </div>
         </div>
     );
 }

@@ -30,9 +30,25 @@ export const PROCESSING_STAGES = [
 
     { key: "finalize", label: "Preparing your summary", estimateMs: 2000 },
 ];
-export async function searchPatients(query) {
-    const res = await fetch(
+let getTokenFn = null;
+export function setAuthTokenGetter(fn) {
+    getTokenFn = fn;
+}
+
+export async function authFetch(url, options = {}) {
+    const token = getTokenFn ? await getTokenFn() : null;
+    return fetch(url, {
+        ...options,
+        headers: {
+            ...(options.headers || {}),
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+    });
+}
+export async function searchPatients(query, signal) {
+    const res = await authFetch(
         `${API_BASE_URL}/patients/search?query=${encodeURIComponent(query)}`,
+        { signal },
     );
     if (!res.ok) throw new Error("Patient search failed");
     const data = await res.json();
@@ -40,7 +56,7 @@ export async function searchPatients(query) {
 }
 
 export async function getPatientConsultations(patientId) {
-    const res = await fetch(
+    const res = await authFetch(
         `${API_BASE_URL}/patients/${patientId}/consultations`,
     );
     if (!res.ok) throw new Error("Failed to load consultations");
@@ -49,12 +65,16 @@ export async function getPatientConsultations(patientId) {
 }
 
 export async function getConsultation(consultationId) {
-    const res = await fetch(`${API_BASE_URL}/consultations/${consultationId}`);
+    const res = await authFetch(
+        `${API_BASE_URL}/consultations/${consultationId}`,
+    );
     if (!res.ok) throw new Error("Failed to load consultation");
     return res.json();
 }
 export async function getPatientSummary(patientId) {
-    const res = await fetch(`${API_BASE_URL}/patients/${patientId}/summary`);
+    const res = await authFetch(
+        `${API_BASE_URL}/patients/${patientId}/summary`,
+    );
     if (!res.ok) throw new Error("Failed to load patient summary");
     const data = await res.json();
     return data.patient_summary || { overview: "", details: [] };
@@ -106,7 +126,7 @@ export async function processAudio(
     const clearAllTimers = () => timers.forEach(clearTimeout);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/process-audio`, {
+        const response = await authFetch(`${API_BASE_URL}/process-audio`, {
             method: "POST",
             body: formData,
         });
@@ -141,4 +161,26 @@ export async function processAudio(
         }
         throw err;
     }
+}
+let doctorProfileCache = null;
+
+export async function getDoctorProfile({ force = false } = {}) {
+    if (doctorProfileCache && !force) return doctorProfileCache;
+    const res = await authFetch(`${API_BASE_URL}/doctor/profile`);
+    if (!res.ok) throw new Error("Failed to load doctor profile");
+    const data = await res.json();
+    doctorProfileCache = data.profile;
+    return data.profile;
+}
+
+export async function saveDoctorProfile(profile) {
+    const res = await authFetch(`${API_BASE_URL}/doctor/profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "Failed to save profile");
+    doctorProfileCache = body.profile;
+    return body.profile;
 }

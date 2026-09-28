@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { ChevronLeft, FileClock, Stethoscope, User } from "lucide-react";
+import {
+    ChevronLeft,
+    Download,
+    FileClock,
+    Loader2,
+    Stethoscope,
+    User,
+} from "lucide-react";
 import ResultView from "./ResultView";
 import { AIOverviewCard, SummaryCard } from "./sections/shared";
 import {
@@ -8,6 +15,8 @@ import {
     getPatientSummary,
     getConsultation,
 } from "../api/processAudio";
+import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
+import SearchInput from "./SearchInput";
 
 export default function PatientRecords() {
     const [query, setQuery] = useState("");
@@ -23,26 +32,36 @@ export default function PatientRecords() {
         details: [],
     });
     const [loadingSummary, setLoadingSummary] = useState(false);
+    const [downloadingId, setDownloadingId] = useState(null);
     const [error, setError] = useState("");
 
     useEffect(() => {
-        if (query.trim().length < 2) {
+        const q = query.trim();
+        if (q.length < 2) {
             setResults([]);
+            setSearching(false);
             return;
         }
         setSearching(true);
+        const controller = new AbortController();
         const handle = setTimeout(async () => {
             try {
-                setResults(await searchPatients(query.trim()));
-            } catch {
+                setResults(await searchPatients(q, controller.signal));
+            } catch (err) {
+                if (err.name === "AbortError") return; // superseded by a newer keystroke
                 setResults([]);
             } finally {
-                setSearching(false);
+                if (!controller.signal.aborted) setSearching(false);
             }
-        }, 350);
-        return () => clearTimeout(handle);
+        }, 300);
+        return () => {
+            clearTimeout(handle);
+            controller.abort();
+        };
     }, [query]);
-
+    useEffect(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }, [activeResult]);
     const selectPatient = async (p) => {
         setSelectedPatient(p);
         setQuery("");
@@ -51,8 +70,7 @@ export default function PatientRecords() {
         setError("");
         setLoadingConsultations(true);
         setLoadingSummary(true);
-        setPatientSummary([]);
-
+        setPatientSummary({ overview: "", details: [] });
         getPatientConsultations(p.id)
             .then(setConsultations)
             .catch((err) => setError(err.message))
@@ -75,8 +93,18 @@ export default function PatientRecords() {
             setLoadingRecord(false);
         }
     };
-
-    // Viewing a specific record — reuse ResultView as-is.
+    const downloadConsultation = async (id) => {
+        setDownloadingId(id);
+        setError("");
+        try {
+            const full = await getConsultation(id);
+            await downloadConsultationPdf(full);
+        } catch (err) {
+            setError(err.message || "Couldn't generate the PDF.");
+        } finally {
+            setDownloadingId(null);
+        }
+    }; // Viewing a specific record — reuse ResultView as-is.
     if (activeResult) {
         return (
             <ResultView
@@ -167,14 +195,17 @@ export default function PatientRecords() {
                         {!loadingConsultations && consultations.length > 0 && (
                             <ul className="space-y-2">
                                 {consultations.map((c) => (
-                                    <li key={c.id}>
+                                    <li
+                                        key={c.id}
+                                        className="flex items-stretch gap-2"
+                                    >
                                         <button
                                             type="button"
                                             onClick={() =>
                                                 openConsultation(c.id)
                                             }
                                             disabled={loadingRecord}
-                                            className="w-full flex items-center gap-3 rounded border border-line bg-paper px-4 py-3 text-left hover:bg-clinical-50 disabled:opacity-50"
+                                            className="min-w-0 flex-1 flex items-center gap-3 rounded border border-line bg-paper px-4 py-3 text-left hover:bg-clinical-50 disabled:opacity-50"
                                         >
                                             <FileClock
                                                 size={16}
@@ -182,11 +213,11 @@ export default function PatientRecords() {
                                                 strokeWidth={1.75}
                                             />
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-base text-ink truncate">
+                                                <p className="text-sm text-ink truncate">
                                                     {c.summary ||
                                                         "Consultation"}
                                                 </p>
-                                                <p className="text-sm text-muted">
+                                                <p className="text-xs text-muted">
                                                     {new Date(c.created_at)
                                                         .toLocaleString(
                                                             "en-IN",
@@ -199,13 +230,33 @@ export default function PatientRecords() {
                                                                 hour12: true,
                                                             },
                                                         )
-                                                        .replace(
-                                                            ",",
-                                                            " -",
-                                                        )}{" "}
+                                                        .replace(",", " -")}
                                                 </p>
                                             </div>
                                         </button>
+                                        {/* <button
+                                            type="button"
+                                            onClick={() =>
+                                                downloadConsultation(c.id)
+                                            }
+                                            disabled={downloadingId === c.id}
+                                            aria-label="Download PDF"
+                                            title="Download PDF"
+                                            className="shrink-0 inline-flex items-center justify-center rounded border border-line bg-paper px-3 text-clinical-600 hover:bg-clinical-50 disabled:opacity-50"
+                                        >
+                                            {downloadingId === c.id ? (
+                                                <Loader2
+                                                    size={16}
+                                                    className="animate-spin"
+                                                    strokeWidth={1.75}
+                                                />
+                                            ) : (
+                                                <Download
+                                                    size={16}
+                                                    strokeWidth={1.75}
+                                                />
+                                            )}
+                                        </button> */}
                                     </li>
                                 ))}
                             </ul>
@@ -223,12 +274,20 @@ export default function PatientRecords() {
                                 Find a patient
                             </h2>
                         </div>
-                        <input
+                        {/* <input
                             type="text"
                             placeholder="Search by name or phone"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
+                            autoFocus
                             className="w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
+                        /> */}
+                        <SearchInput
+                            value={query}
+                            onChange={setQuery}
+                            placeholder="Search by name or phone"
+                            autoFocus
+                            inputClassName="w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
                         />
                         {searching && (
                             <p className="text-xs text-muted mt-2">

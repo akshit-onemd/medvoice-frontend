@@ -43,7 +43,7 @@ export function MedicationsCard({ medications }) {
                                     {m.name || "Unnamed medication"}
                                     {m.dosage && (
                                         <span className="text-muted">
-                                            {" "}
+                                            
                                             · {m.dosage}
                                         </span>
                                     )}
@@ -160,7 +160,7 @@ export function InvestigationsCard({ investigations }) {
                                                                 · {r.loinc_code}
                                                             </span>
                                                         )}
-                                                    </span>{" "}
+                                                    </span>
                                                     <span className="text-muted text-right">
                                                         {r.result} {r.unit}
                                                         {r.interpretation && (
@@ -176,7 +176,7 @@ export function InvestigationsCard({ investigations }) {
                                                                 }
                                                             </span>
                                                         )}
-                                                    </span>{" "}
+                                                    </span>
                                                 </div>
                                             ))}
                                     </div>
