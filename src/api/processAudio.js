@@ -195,5 +195,19 @@ export async function updatePrescription(consultationId, prescription) {
     );
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || "Failed to save changes");
-    return body.prescription;
+    return body; // { prescription, consultation_summary }
+}
+
+export async function updateSection(consultationId, key, payload) {
+    const res = await authFetch(
+        `${API_BASE_URL}/consultations/${consultationId}/section/${key}`,
+        {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ [key]: payload }),
+        },
+    );
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "Failed to save changes");
+    return body; // { [key]: ..., consultation_summary }
 }

@@ -31,7 +31,7 @@ export function MedicationsCard({ medications }) {
     const list = usableList(medications);
 
     return (
-        <SectionCard icon={Pill} title="Medications" count={list.length}>
+        <SectionCard icon={Pill} title="Medication History" count={list.length}>
             {list.length === 0 ? (
                 <EmptyNote>No medications were discussed.</EmptyNote>
             ) : (

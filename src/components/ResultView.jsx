@@ -21,6 +21,7 @@ import { AIOverviewCard, SummaryCard } from "./sections/shared";
 import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
 import BrandMark from "./BrandMark";
 import PrescriptionEditor from "./PrescriptionEditor";
+import HistorySectionEditor from "./HistorySectionEditor";
 
 // Treats null/undefined, empty arrays, empty objects, and blank strings as "no data".
 function isEmptyValue(v) {
@@ -31,17 +32,34 @@ function isEmptyValue(v) {
     return false;
 }
 export default function ResultView({ result, onReset }) {
-    const [rx, setRx] = useState(result?.structured_data?.prescription || null);
-    const [editingRx, setEditingRx] = useState(false);
+    // `doc` holds the full structured_data, kept in sync as sections are edited
+    // and saved, so the page (and the PDF) always reflects the latest state.
+    const [doc, setDoc] = useState(result?.structured_data || {});
+    const [editingSection, setEditingSection] = useState(null); // null | "prescription" | a section key
 
     useEffect(() => {
-        setRx(result?.structured_data?.prescription || null);
-        setEditingRx(false);
+        setDoc(result?.structured_data || {});
+        setEditingSection(null);
     }, [result]);
+
     const [showTranscript, setShowTranscript] = useState(false);
-    const data = result?.structured_data || {};
+    const data = doc;
+    const rx = data.prescription || null;
     const consultationId = result?.saved?.consultation_id;
     const canEdit = !!consultationId && !data.raw_response;
+
+    // Applied after any section/prescription save — merges the edited section
+    // and the freshly regenerated consultation_summary into local state.
+    const saveSection = (key) => (body) => {
+        setDoc((d) => ({
+            ...d,
+            [key]: body[key],
+            consultation_summary:
+                body.consultation_summary ?? d.consultation_summary,
+        }));
+        setEditingSection(null);
+    };
+
     // If the model failed to return valid JSON, the backend falls back
     // to { raw_response: "..." }. Show that plainly instead of an empty chart.
     if (
@@ -56,7 +74,7 @@ export default function ResultView({ result, onReset }) {
                     onDownload={() =>
                         downloadConsultationPdf({
                             ...result,
-                            structured_data: { ...data, prescription: rx },
+                            structured_data: doc,
                         })
                     }
                 />
@@ -88,21 +106,25 @@ export default function ResultView({ result, onReset }) {
 
     const sections = [
         {
+            key: "vitals",
             label: "Vitals",
             value: recordedVitals,
             render: () => <VitalsCard vitals={recordedVitals} />,
         },
         {
+            key: "allergies",
             label: "Allergies",
             value: data.allergies,
             render: () => <AllergiesCard allergies={data.allergies} />,
         },
         {
+            key: "conditions",
             label: "Conditions",
             value: data.conditions,
             render: () => <ConditionsCard conditions={data.conditions} />,
         },
         {
+            key: "medication_history",
             label: "Medications",
             value: data.medication_history,
             render: () => (
@@ -110,6 +132,7 @@ export default function ResultView({ result, onReset }) {
             ),
         },
         {
+            key: "investigation_history",
             label: "Investigations",
             value: data.investigation_history,
             render: () => (
@@ -119,11 +142,13 @@ export default function ResultView({ result, onReset }) {
             ),
         },
         {
+            key: "procedures",
             label: "Procedures",
             value: data.procedures,
             render: () => <ProceduresCard procedures={data.procedures} />,
         },
         {
+            key: "system_review",
             label: "System review",
             value: data.system_review,
             render: () => (
@@ -131,6 +156,7 @@ export default function ResultView({ result, onReset }) {
             ),
         },
         {
+            key: "family_history",
             label: "Family history",
             value: data.family_history,
             render: () => (
@@ -138,11 +164,13 @@ export default function ResultView({ result, onReset }) {
             ),
         },
         {
+            key: "lifestyle_habits",
             label: "Lifestyle",
             value: data.lifestyle_habits,
             render: () => <LifestyleCard lifestyle={data.lifestyle_habits} />,
         },
         {
+            key: "social_history",
             label: "Social history",
             value: data.social_history,
             render: () => (
@@ -150,6 +178,7 @@ export default function ResultView({ result, onReset }) {
             ),
         },
         {
+            key: "other_history",
             label: "Other history",
             value: data.other_history,
             render: () => (
@@ -170,7 +199,7 @@ export default function ResultView({ result, onReset }) {
                 onDownload={() =>
                     downloadConsultationPdf({
                         ...result,
-                        structured_data: { ...data, prescription: rx },
+                        structured_data: doc,
                     })
                 }
             />
@@ -194,8 +223,41 @@ export default function ResultView({ result, onReset }) {
             {/* <div className="columns-1 lg:columns-2 gap-5"> */}
             <div className="columns-1 gap-5">
                 {filledSections.map((s) => (
-                    <div key={s.label} className="break-inside-avoid mb-5">
-                        {s.render()}
+                    <div key={s.key} className="break-inside-avoid mb-5">
+                        {editingSection === s.key ? (
+                            <HistorySectionEditor
+                                sectionKey={s.key}
+                                consultationId={consultationId}
+                                data={
+                                    s.key === "vitals"
+                                        ? data.vitals
+                                        : data[s.key]
+                                }
+                                onSaved={saveSection(s.key)}
+                                onCancel={() => setEditingSection(null)}
+                            />
+                        ) : (
+                            <div>
+                                {canEdit && (
+                                    <div className="flex justify-end mb-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setEditingSection(s.key)
+                                            }
+                                            className="inline-flex items-center gap-1.5 rounded border border-line bg-surface px-2.5 py-1 text-xs text-ink hover:bg-paper transition-colors"
+                                        >
+                                            <Pencil
+                                                size={11}
+                                                strokeWidth={1.75}
+                                            />
+                                            Edit
+                                        </button>
+                                    </div>
+                                )}
+                                {s.render()}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
@@ -205,27 +267,35 @@ export default function ResultView({ result, onReset }) {
                         Not recorded
                     </p>
                     <div className="flex flex-wrap gap-2">
-                        {emptySections.map((s) => (
-                            <span
-                                key={s.label}
-                                className="inline-flex items-center rounded-full border border-line bg-paper px-2.5 py-1 text-sm"
-                            >
-                                {s.label}
-                            </span>
-                        ))}
+                        {emptySections.map((s) =>
+                            canEdit ? (
+                                <button
+                                    key={s.key}
+                                    type="button"
+                                    onClick={() => setEditingSection(s.key)}
+                                    className="inline-flex items-center rounded-full border border-line bg-paper px-2.5 py-1 text-sm hover:bg-clinical-50 hover:text-ink transition-colors"
+                                >
+                                    + {s.label}
+                                </button>
+                            ) : (
+                                <span
+                                    key={s.key}
+                                    className="inline-flex items-center rounded-full border border-line bg-paper px-2.5 py-1 text-sm"
+                                >
+                                    {s.label}
+                                </span>
+                            ),
+                        )}
                     </div>
                 </div>
             )}
-            {editingRx ? (
+            {editingSection === "prescription" ? (
                 <div className="mt-5">
                     <PrescriptionEditor
                         consultationId={consultationId}
                         prescription={rx}
-                        onSaved={(saved) => {
-                            setRx(saved);
-                            setEditingRx(false);
-                        }}
-                        onCancel={() => setEditingRx(false)}
+                        onSaved={saveSection("prescription")}
+                        onCancel={() => setEditingSection(null)}
                     />
                 </div>
             ) : (
@@ -234,7 +304,9 @@ export default function ResultView({ result, onReset }) {
                         <div className="flex justify-end mb-2">
                             <button
                                 type="button"
-                                onClick={() => setEditingRx(true)}
+                                onClick={() =>
+                                    setEditingSection("prescription")
+                                }
                                 className="inline-flex items-center gap-1.5 rounded border border-line bg-surface px-3 py-1.5 text-xs text-ink hover:bg-paper transition-colors"
                             >
                                 <Pencil size={12} strokeWidth={1.75} />
