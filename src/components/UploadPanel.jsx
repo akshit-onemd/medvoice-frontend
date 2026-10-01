@@ -9,11 +9,11 @@ import {
     FileText,
     Camera,
     SwitchCamera,
+    ChevronRight,
+    UserPlus,
 } from "lucide-react";
-import { API_BASE_URL, authFetch } from "../api/processAudio";
+import { API_BASE_URL, authFetch, searchPatients } from "../api/processAudio";
 import SearchInput from "./SearchInput";
-const ACCEPTED_TYPES = [".mp3", ".wav", ".m4a", ".webm", ".ogg"];
-
 function formatSize(bytes) {
     if (!bytes) return "";
     const kb = bytes / 1024;
@@ -31,7 +31,7 @@ function formatDuration(seconds) {
     return `${m}:${s}`;
 }
 
-export default function UploadPanel({ onSubmit }) {
+export default function UploadPanel({ onSubmit, onViewDetails }) {
     const [file, setFile] = useState(null);
     const [isRecording, setIsRecording] = useState(false);
     const [recordSeconds, setRecordSeconds] = useState(0);
@@ -56,27 +56,25 @@ export default function UploadPanel({ onSubmit }) {
     const [newGender, setNewGender] = useState("");
     const [newPhone, setNewPhone] = useState("");
     const [sttProvider, setSttProvider] = useState("elevenlabs");
+    const [searchedFor, setSearchedFor] = useState("");
     useEffect(() => {
         const q = patientQuery.trim();
         if (q.length < 2) {
             setPatientResults([]);
             setSearchingPatient(false);
+            setSearchedFor("");
             return;
         }
         setSearchingPatient(true);
         const controller = new AbortController();
         const handle = setTimeout(async () => {
             try {
-                const res = await authFetch(
-                    `${API_BASE_URL}/patients/search?query=${encodeURIComponent(q)}`,
-                    { signal: controller.signal },
-                );
-                if (!res.ok) throw new Error(`Search failed (${res.status})`);
-                const data = await res.json();
-                setPatientResults(data.patients || []);
+                setPatientResults(await searchPatients(q, controller.signal));
+                setSearchedFor(q);
             } catch (err) {
-                if (err.name === "AbortError") return; // superseded by a newer keystroke
+                if (err.name === "AbortError") return;
                 setPatientResults([]);
+                setSearchedFor(""); // a failed search must not invite adding a duplicate
             } finally {
                 if (!controller.signal.aborted) setSearchingPatient(false);
             }
@@ -99,6 +97,11 @@ export default function UploadPanel({ onSubmit }) {
             });
         }
     }, [showCamera]);
+    // "98200 98200" -> "9820098200"; returns null if the text isn't a phone number
+    const asPhone = (q) => {
+        const d = q.replace(/[\s\-+()]/g, "");
+        return /^\d{4,}$/.test(d) ? d : null;
+    };
     const handleFiles = useCallback((fileList) => {
         const picked = fileList?.[0];
         if (!picked) return;
@@ -212,6 +215,26 @@ export default function UploadPanel({ onSubmit }) {
         setSelectedPatient(null);
         setShowNewPatientForm(false);
     };
+
+    const startNewPatient = (q) => {
+        const phone = asPhone(q);
+        setNewName(phone ? "" : q);
+        setNewPhone(phone || "");
+        setNewAge("");
+        setNewGender("");
+        setPatientQuery("");
+        setPatientResults([]);
+        setShowNewPatientForm(true);
+    };
+
+    const backToSearch = () => {
+        setShowNewPatientForm(false);
+        setNewName("");
+        setNewPhone("");
+        setNewAge("");
+        setNewGender("");
+    };
+
     const hasPatient =
         !!selectedPatient ||
         (showNewPatientForm && newName.trim() && newPhone.trim());
@@ -327,6 +350,13 @@ export default function UploadPanel({ onSubmit }) {
               };
         onSubmit(file, attachments, patientInfo, sttProvider);
     };
+    const q = patientQuery.trim();
+    const showAddPrompt =
+        q.length >= 2 &&
+        !searchingPatient &&
+        searchedFor === q &&
+        patientResults.length === 0;
+
     return (
         <div className="w-full max-w-2xl mx-auto">
             <div className="bg-surface border border-line rounded-md shadow-panel p-6">
@@ -401,27 +431,19 @@ export default function UploadPanel({ onSubmit }) {
                             </div>
                             <button
                                 type="button"
-                                onClick={() => setShowNewPatientForm(false)}
+                                onClick={backToSearch}
                                 className="text-xs text-muted underline underline-offset-2 mt-2"
                             >
-                                Search existing patient instead
+                                Back to search
                             </button>
                         </div>
                     ) : (
                         <div>
-                            {/* <input
-                                type="text"
-                                placeholder="Search by name or phone"
-                                value={patientQuery}
-                                onChange={(e) =>
-                                    setPatientQuery(e.target.value)
-                                }
-                                className="w-full rounded border border-line bg-paper px-3 py-2 text-lg text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
-                            /> */}
                             <SearchInput
                                 value={patientQuery}
                                 onChange={setPatientQuery}
-                                placeholder="Search by name or phone"
+                                placeholder="Search patient by name or phone"
+                                autoFocus
                                 disabled={isRecording}
                                 inputClassName="w-full rounded border border-line bg-paper px-3 py-2 text-lg text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
                             />
@@ -433,13 +455,16 @@ export default function UploadPanel({ onSubmit }) {
                             {patientResults.length > 0 && (
                                 <ul className="mt-2 rounded border border-line divide-y divide-line overflow-hidden">
                                     {patientResults.map((p) => (
-                                        <li key={p.id}>
+                                        <li
+                                            key={p.id}
+                                            className="flex items-stretch"
+                                        >
                                             <button
                                                 type="button"
                                                 onClick={() => selectPatient(p)}
-                                                className="w-full text-left px-3 py-2.5 hover:bg-paper"
+                                                className="min-w-0 flex-1 text-left px-3 py-2.5 hover:bg-paper"
                                             >
-                                                <p className="text-sm text-ink">
+                                                <p className="text-sm text-ink truncate">
                                                     {p.name}
                                                 </p>
                                                 <p className="text-xs text-muted">
@@ -452,24 +477,43 @@ export default function UploadPanel({ onSubmit }) {
                                                         .join(" · ")}
                                                 </p>
                                             </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    onViewDetails?.(p)
+                                                }
+                                                className="shrink-0 inline-flex items-center gap-1 px-3 text-xs text-clinical-600 hover:bg-clinical-50"
+                                            >
+                                                View details
+                                                <ChevronRight
+                                                    size={12}
+                                                    strokeWidth={1.75}
+                                                />
+                                            </button>
                                         </li>
                                     ))}
                                 </ul>
                             )}
-                            {patientQuery.trim().length >= 2 &&
-                                !searchingPatient &&
-                                patientResults.length === 0 && (
-                                    <p className="text-xs text-muted mt-2">
-                                        No matching patient found.
-                                    </p>
-                                )}
-                            <button
-                                type="button"
-                                onClick={() => setShowNewPatientForm(true)}
-                                className="text-base text-clinical-600 underline underline-offset-2 mt-2"
-                            >
-                                + Add new patient
-                            </button>
+                            {showAddPrompt && (
+                                <div className="mt-2 rounded border border-line bg-paper px-4 py-3">
+                                    {/* <p className="text-sm text-ink">
+                                        No patient found for “{q}”.
+                                    </p> */}
+                                    <button
+                                        type="button"
+                                        onClick={() => startNewPatient(q)}
+                                        className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-clinical-600 hover:underline"
+                                    >
+                                        <UserPlus
+                                            size={14}
+                                            strokeWidth={1.75}
+                                        />
+                                        {asPhone(q)
+                                            ? `Add a new patient with phone ${asPhone(q)}`
+                                            : `Add “${q}” as a new patient`}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Stethoscope } from "lucide-react";
 import { Show, SignIn, UserButton, useAuth } from "@clerk/react";
 import Dashboard from "./Dashboard";
 import ProfileForm from "./components/ProfileForm";
-import { getDoctorProfile, setAuthTokenGetter } from "./api/processAudio";
 import BrandMark from "./components/BrandMark";
-
+import {
+    getDoctorProfile,
+    getMe,
+    setAuthTokenGetter,
+} from "./api/processAudio";
+import StaffDashboard from "./StaffDashboard";
 function ProfileGate() {
     const { getToken } = useAuth();
     setAuthTokenGetter(getToken); // set during render so it's ready before any child request
@@ -79,7 +82,54 @@ function ProfileGate() {
 
     return <Dashboard profile={profile} onProfileChange={setProfile} />;
 }
+function RoleGate() {
+    const { getToken } = useAuth();
+    setAuthTokenGetter(getToken); // set during render so it's ready before the first request
 
+    const [me, setMe] = useState(undefined); // undefined = loading
+    const [loadError, setLoadError] = useState("");
+    const [attempt, setAttempt] = useState(0);
+
+    useEffect(() => {
+        let cancelled = false;
+        setLoadError("");
+        getMe()
+            .then((m) => !cancelled && setMe(m))
+            .catch(
+                (err) =>
+                    !cancelled &&
+                    setLoadError(err.message || "Couldn't load your account."),
+            );
+        return () => {
+            cancelled = true;
+        };
+    }, [attempt]);
+
+    if (loadError) {
+        return (
+            <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-3 px-4">
+                <p className="text-sm text-alert-500">{loadError}</p>
+                <button
+                    type="button"
+                    onClick={() => setAttempt((n) => n + 1)}
+                    className="rounded bg-clinical-500 text-paper px-4 py-2 text-sm"
+                >
+                    Try again
+                </button>
+            </div>
+        );
+    }
+    if (me === undefined) {
+        return (
+            <div className="min-h-screen bg-paper flex items-center justify-center">
+                <p className="text-sm text-muted">Loading…</p>
+            </div>
+        );
+    }
+    if (me.role === "staff")
+        return <StaffDashboard doctorName={me.doctor_name} />;
+    return <ProfileGate />;
+}
 export default function App() {
     return (
         <>
@@ -89,7 +139,7 @@ export default function App() {
                 </div>
             </Show>
             <Show when="signed-in">
-                <ProfileGate />
+                <RoleGate />
             </Show>
         </>
     );

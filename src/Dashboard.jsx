@@ -9,7 +9,7 @@ import PatientRecords from "./components/PatientRecords";
 import ProfileForm from "./components/ProfileForm";
 import { processAudio } from "./api/processAudio";
 import BrandMark from "./components/BrandMark";
-
+import LetterheadSettings from "./components/LetterheadSettings";
 // idle -> processing -> result | error
 // records is a parallel top-level stage, reachable from idle/result/error via the nav
 // profile is an overlay view controlled by showProfile, not a stage
@@ -20,7 +20,7 @@ export default function Dashboard({ profile, onProfileChange }) {
     const [result, setResult] = useState(null);
     const [errorMessage, setErrorMessage] = useState("");
     const [showProfile, setShowProfile] = useState(false);
-
+const [detailPatient, setDetailPatient] = useState(null);
     // Start every screen change at the top of the page
     useEffect(() => {
         window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -55,27 +55,36 @@ export default function Dashboard({ profile, onProfileChange }) {
         }
     };
 
-    const reset = () => {
-        setShowProfile(false);
-        setStage("idle");
-        setResult(null);
-        setErrorMessage("");
-        setFileName("");
-    };
+const reset = () => {
+    setShowProfile(false);
+    setStage("idle");
+    setResult(null);
+    setErrorMessage("");
+    setFileName("");
+    setDetailPatient(null);
+};
 
-    const goToRecords = () => {
-        setShowProfile(false);
-        setResult(null);
-        setErrorMessage("");
-        setFileName("");
-        setStage("records");
-    };
+const openPatient = (p) => {
+    setShowProfile(false);
+    setResult(null);
+    setErrorMessage("");
+    setFileName("");
+    setDetailPatient(p);
+    setStage("patient");
+};
+    // const goToRecords = () => {
+    //     setShowProfile(false);
+    //     setResult(null);
+    //     setErrorMessage("");
+    //     setFileName("");
+    //     setStage("records");
+    // };
 
     // Nav is hidden during active recording/processing/result review and while
     // the profile form is open — only shown on idle, records, and error.
-    const showNav =
-        !showProfile &&
-        (stage === "idle" || stage === "records" || stage === "error");
+    // const showNav =
+    //     !showProfile &&
+    //     (stage === "idle" || stage === "records" || stage === "error");
 
     return (
         <div className="min-h-screen bg-paper px-4 pt-24 pb-16">
@@ -109,7 +118,7 @@ export default function Dashboard({ profile, onProfileChange }) {
                 </div>
             </div>
 
-            <div className="w-full max-w-2xl mx-auto mb-6">
+            {/* <div className="w-full max-w-2xl mx-auto mb-6">
                 {showNav && (
                     <div className="flex gap-6 border-b border-line">
                         <button
@@ -138,22 +147,33 @@ export default function Dashboard({ profile, onProfileChange }) {
                         </button>
                     </div>
                 )}
-            </div>
+            </div> */}
 
             {showProfile ? (
-                <ProfileForm
-                    title="Doctor profile"
-                    initial={profile}
-                    onSaved={(p) => {
-                        onProfileChange(p);
-                        setShowProfile(false);
-                    }}
-                    onCancel={() => setShowProfile(false)}
-                />
+                <>
+                    <ProfileForm
+                        title="Doctor profile"
+                        initial={profile}
+                        onSaved={(p) => {
+                            onProfileChange(p);
+                            setShowProfile(false);
+                        }}
+                        onCancel={() => setShowProfile(false)}
+                    />
+                    <div className="w-full max-w-2xl mx-auto mt-5">
+                        <LetterheadSettings
+                            profile={profile}
+                            onChange={onProfileChange}
+                        />
+                    </div>
+                </>
             ) : (
                 <>
                     {stage === "idle" && (
-                        <UploadPanel onSubmit={handleSubmit} />
+                        <UploadPanel
+                            onSubmit={handleSubmit}
+                            onViewDetails={openPatient}
+                        />
                     )}
                     {stage === "processing" && (
                         <ProcessingView
@@ -167,7 +187,12 @@ export default function Dashboard({ profile, onProfileChange }) {
                     {stage === "error" && (
                         <ErrorView message={errorMessage} onRetry={reset} />
                     )}
-                    {stage === "records" && <PatientRecords />}
+                    {stage === "patient" && detailPatient && (
+                        <PatientRecords
+                            patient={detailPatient}
+                            onBack={reset}
+                        />
+                    )}
                 </>
             )}
         </div>

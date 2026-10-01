@@ -661,7 +661,7 @@ function InvestigationsEditor({ data, consultationId, onSaved, onCancel }) {
                                         onClick={() => removeReading(i, j)}
                                         className="mt-1 inline-flex items-center gap-1 text-xs text-alert-500 hover:underline"
                                     >
-                                        <Trash2 size={11} strokeWidth={1.75} />{" "}
+                                        <Trash2 size={11} strokeWidth={1.75} />
                                         Remove test
                                     </button>
                                 </div>

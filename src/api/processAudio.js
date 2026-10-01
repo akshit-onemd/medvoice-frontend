@@ -211,3 +211,41 @@ export async function updateSection(consultationId, key, payload) {
     if (!res.ok) throw new Error(body.error || "Failed to save changes");
     return body; // { [key]: ..., consultation_summary }
 }
+export async function saveLetterhead({ image_data, top_pct, bottom_pct }) {
+    const res = await authFetch(`${API_BASE_URL}/doctor/letterhead`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_data, top_pct, bottom_pct }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "Failed to save letterhead");
+    doctorProfileCache = body.profile; // keeps the cached profile (used by PDF downloads) current
+    return body.profile;
+}
+export async function getMe() {
+    const res = await authFetch(`${API_BASE_URL}/me`);
+    if (!res.ok) throw new Error("Couldn't load your account");
+    return res.json(); // { role, doctor_name? }
+}
+
+export async function createPatient(patient) {
+    const res = await authFetch(`${API_BASE_URL}/patients`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patient),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "Failed to add patient");
+    return body.patient;
+}
+
+export async function updatePatient(id, patient) {
+    const res = await authFetch(`${API_BASE_URL}/patients/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patient),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "Failed to update patient");
+    return body.patient;
+}

@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const MARGIN = 14;
+const FOOTER = 18;
 const INK = [25, 25, 25];
 const SUB = [90, 90, 90];
 const MUTED = [120, 120, 120];
@@ -60,38 +61,90 @@ export function generateConsultationPdf(
     const data = result?.structured_data || {};
     const saved = result?.saved || {};
     const rx = data.prescription || {};
-    let doc = new jsPDF({ unit: "mm", format: "a4" });
+
+    const mk = () => new jsPDF({ unit: "mm", format: "a4" });
+    let doc = mk(); // reassigned temporarily while measuring sections
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
+
     const contentW = pageW - MARGIN * 2;
-    let y = MARGIN;
+    // ---- Letterhead: only the header and footer strips are used ----
+    const lhHeader = doctor?.letterhead_header || null;
+    const lhFooter = doctor?.letterhead_footer || null;
+    const hasHeaderArt = !!lhHeader;
+    const hasFooterArt = !!lhFooter;
+    const lhTop = Math.min(
+        60,
+        Math.max(0, Number(doctor?.letterhead_top_pct) || 0),
+    );
+    const lhBottom = Math.min(
+        100,
+        Math.max(40, Number(doctor?.letterhead_bottom_pct) || 100),
+    );
+    const headerH = (pageH * lhTop) / 100;
+    const footerStart = (pageH * lhBottom) / 100;
+    const TOP = hasHeaderArt ? Math.max(MARGIN, headerH + 3) : MARGIN;
+    const contentBottom = hasFooterArt
+        ? Math.min(footerStart, pageH - 8)
+        : null;
+    const limit = hasFooterArt ? contentBottom - 6 : pageH - FOOTER;
+    let y = TOP;
 
-    let noBreak = false; // when true, ensureSpace never adds a page
-
-    const ensureSpace = (n) => {
-        if (noBreak) return;
-        if (y + n > pageH - 18) {
-            doc.addPage();
-            y = MARGIN;
+    let measuring = false;
+    const drawBg = () => {
+        if (measuring) return;
+        try {
+            if (lhHeader) {
+                doc.addImage(
+                    lhHeader,
+                    "JPEG",
+                    0,
+                    0,
+                    pageW,
+                    headerH,
+                    "lh-header",
+                    "FAST",
+                );
+            }
+            if (lhFooter) {
+                doc.addImage(
+                    lhFooter,
+                    "JPEG",
+                    0,
+                    footerStart,
+                    pageW,
+                    pageH - footerStart,
+                    "lh-footer",
+                    "FAST",
+                );
+            }
+        } catch {
+            /* unreadable strip: carry on without it */
         }
     };
+    const newPage = () => {
+        doc.addPage();
+        drawBg();
+        y = TOP;
+    };
 
-    // Renders on a very tall scratch page and returns the exact height used
+    const ensureSpace = (n) => {
+        if (y + n > limit) newPage();
+    };
+
+    // Draw a section on a scratch document to learn how tall it is
     const measure = (fn) => {
         const realDoc = doc;
         const realY = y;
-        const realBreak = noBreak;
-        doc = new jsPDF({ unit: "mm", format: [pageW, 3000] });
-        noBreak = true;
-        y = MARGIN;
-        try {
-            fn();
-            return y - MARGIN;
-        } finally {
-            doc = realDoc;
-            y = realY;
-            noBreak = realBreak;
-        }
+        doc = mk();
+        y = TOP;
+        measuring = true;
+        fn();
+        measuring = false;
+        const h = (doc.getNumberOfPages() - 1) * (limit - TOP) + (y - TOP);
+        doc = realDoc;
+        y = realY;
+        return h;
     };
     // Grey label band, like the reference document
     const band = (title) => {
@@ -160,10 +213,22 @@ export function generateConsultationPdf(
         flow(segs, { indent: 5 });
         y += 1.8;
     };
-
+    let tableStartPage = 1;
+    const runTable = (opts) => {
+        tableStartPage = doc.getNumberOfPages();
+        autoTable(doc, opts);
+    };
     const tableStyles = {
         theme: "grid",
-        margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: 18 },
+        margin: {
+            left: MARGIN,
+            right: MARGIN,
+            top: TOP,
+            bottom: pageH - limit,
+        },
+        willDrawPage: (d) => {
+            if (d.pageNumber > tableStartPage) drawBg(); // long tables that spill onto a new page
+        },
         styles: {
             fontSize: 9.5,
             cellPadding: 2.4,
@@ -191,72 +256,68 @@ export function generateConsultationPdf(
     const section = (groupName, title, ok, render) => {
         if (!ok) return;
 
-        const limit = pageH - 18;
-        const usable = limit - MARGIN;
-        const needed =
-            measure(() => {
-                band(title);
-                render();
-            }) + (groupName && group !== groupName ? 8 : 0); // group heading height
+        const draw = () => {
+            if (groupName) enterGroup(groupName);
+            band(title);
+            render();
+        };
 
-        const fitsOnOnePage = needed <= usable;
+        // Measure on the scratch page without disturbing the group state
+        const prevGroup = group;
+        const h = measure(draw);
+        group = prevGroup;
 
-        // Doesn't fit in the space left, but fits on a fresh page: move it whole
-        if (fitsOnOnePage && y + needed > limit) {
-            doc.addPage();
-            y = MARGIN;
-        }
-
-        noBreak = fitsOnOnePage; // placed as a block, so no mid-section breaks
-        if (groupName) enterGroup(groupName);
-        band(title);
-        render();
-        noBreak = false;
-
+        if (h <= limit - TOP && y + h > limit) newPage();
+        draw();
         y += 1.5;
     };
+    drawBg();
     // ---------- Header (doctor details + brand) ----------
-    const headLines = doctor
-        ? [
-              txt(doctor.qualification),
-              txt(doctor.registration_no)
-                  ? `Reg. No: ${txt(doctor.registration_no)}`
-                  : "",
-              txt(doctor.email) ? `Email: ${txt(doctor.email)}` : "",
-              [txt(doctor.clinic_name), txt(doctor.clinic_address)]
-                  .filter(Boolean)
-                  .join(", "),
-          ].filter(Boolean)
-        : [];
+    if (!hasHeaderArt) {
+        const headLines = doctor
+            ? [
+                  txt(doctor.qualification),
+                  txt(doctor.registration_no)
+                      ? `Reg. No: ${txt(doctor.registration_no)}`
+                      : "",
+                  txt(doctor.email) ? `Email: ${txt(doctor.email)}` : "",
+                  [txt(doctor.clinic_name), txt(doctor.clinic_address)]
+                      .filter(Boolean)
+                      .join(", "),
+              ].filter(Boolean)
+            : [];
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
-    doc.setTextColor(...INK);
-    doc.text(withDr(doctor?.name) || "Consultation Report", MARGIN, y + 5);
-    let hy = y + 5;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...SUB);
-    headLines.forEach((line) => {
-        doc.splitTextToSize(line, 115).forEach((part) => {
-            hy += 4.6;
-            doc.text(part, MARGIN, hy);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(15);
+        doc.setTextColor(...INK);
+        doc.text(withDr(doctor?.name) || "Consultation Report", MARGIN, y + 5);
+        let hy = y + 5;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(...SUB);
+        headLines.forEach((line) => {
+            doc.splitTextToSize(line, 115).forEach((part) => {
+                hy += 4.6;
+                doc.text(part, MARGIN, hy);
+            });
         });
-    });
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...BRAND);
-    doc.text("OneMD", pageW - MARGIN, y + 5, { align: "right" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...MUTED);
-    doc.text("Appointment Summary", pageW - MARGIN, y + 10, { align: "right" });
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(...BRAND);
+        doc.text("OneMD", pageW - MARGIN, y + 5, { align: "right" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(...MUTED);
+        doc.text("Appointment Summary", pageW - MARGIN, y + 10, {
+            align: "right",
+        });
 
-    doc.setDrawColor(...LINE);
-    doc.setLineWidth(0.3);
-    doc.line(MARGIN, hy + 4, pageW - MARGIN, hy + 4);
-    y = hy + 10;
+        doc.setDrawColor(...LINE);
+        doc.setLineWidth(0.3);
+        doc.line(MARGIN, hy + 4, pageW - MARGIN, hy + 4);
+        y = hy + 10;
+    }
 
     // ---------- Patient bar ----------
     const when = result?.created_at ? new Date(result.created_at) : new Date();
@@ -441,7 +502,7 @@ export function generateConsultationPdf(
                     or(dash([r.interpretation, r.notes])),
                 ]);
             if (rows.length) {
-                autoTable(doc, {
+                runTable({
                     ...tableStyles,
                     startY: y - 1,
                     head: [["Test", "Result", "Interpretation / notes"]],
@@ -487,7 +548,7 @@ export function generateConsultationPdf(
 
     const rxMeds = list(rx.medications).filter((e) => has(e, ["name"]));
     section(RX, "Medications", rxMeds.length > 0, () => {
-        autoTable(doc, {
+        runTable({
             ...tableStyles,
             startY: y - 2,
             head: [["Medicine", "Dosage", "Duration", "Instructions"]],
@@ -625,24 +686,26 @@ export function generateConsultationPdf(
 
     // ---------- Footer on every page ----------
     const pages = doc.getNumberOfPages();
+    const footerY = hasFooterArt ? contentBottom - 1.5 : pageH - 8;
     for (let i = 1; i <= pages; i++) {
         doc.setPage(i);
-        doc.setDrawColor(...LINE);
-        doc.setLineWidth(0.3);
-        doc.line(MARGIN, pageH - 13, pageW - MARGIN, pageH - 13);
+        if (!hasFooterArt) {
+            doc.setDrawColor(...LINE);
+            doc.setLineWidth(0.3);
+            doc.line(MARGIN, pageH - 13, pageW - MARGIN, pageH - 13);
+        }
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
+        doc.setFontSize(hasFooterArt ? 7 : 8);
         doc.setTextColor(...MUTED);
         doc.text(
-            "Prepared by OneMD from the consultation recording. Please review before use.",
+            `${txt(saved.patient_name) || "Patient"} · AI-generated from consultation audio. Verify before clinical use.`,
             MARGIN,
-            pageH - 8,
+            footerY,
         );
-        doc.text(`Page ${i} of ${pages}`, pageW - MARGIN, pageH - 8, {
+        doc.text(`Page ${i} of ${pages}`, pageW - MARGIN, footerY, {
             align: "right",
         });
     }
-
     const safe = (s) =>
         txt(s)
             .replace(/[^a-z0-9]+/gi, "-")
