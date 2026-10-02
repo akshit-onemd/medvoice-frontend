@@ -711,6 +711,6 @@ export function generateConsultationPdf(
             .replace(/[^a-z0-9]+/gi, "-")
             .replace(/^-|-$/g, "");
     doc.save(
-        `consultation-${safe(saved.patient_name) || "patient"}-${when.toISOString().slice(0, 10)}.pdf`,
+        `${safe(saved.patient_name) || "patient"} ${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, "0")}-${String(when.getDate()).padStart(2, "0")} ${when.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true }).replace(/:/g, ".").replace(/\s/g, " ")}.pdf`,
     );
 }

@@ -12,8 +12,9 @@ import {
     ChevronRight,
     UserPlus,
 } from "lucide-react";
-import { API_BASE_URL, authFetch, searchPatients } from "../api/processAudio";
 import SearchInput from "./SearchInput";
+import PatientForm from "./PatientForm";
+import { searchPatients, createPatient } from "../api/processAudio";
 function formatSize(bytes) {
     if (!bytes) return "";
     const kb = bytes / 1024;
@@ -50,11 +51,9 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
     const [patientResults, setPatientResults] = useState([]);
     const [searchingPatient, setSearchingPatient] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState(null);
-    const [showNewPatientForm, setShowNewPatientForm] = useState(false);
-    const [newName, setNewName] = useState("");
-    const [newAge, setNewAge] = useState("");
-    const [newGender, setNewGender] = useState("");
-    const [newPhone, setNewPhone] = useState("");
+    const [newPatientSeed, setNewPatientSeed] = useState(null); // null | { name, phone }
+    const [creatingPatient, setCreatingPatient] = useState(false);
+    const [createError, setCreateError] = useState("");
     const [sttProvider, setSttProvider] = useState("elevenlabs");
     const [searchedFor, setSearchedFor] = useState("");
     useEffect(() => {
@@ -213,32 +212,37 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
     };
     const clearPatient = () => {
         setSelectedPatient(null);
-        setShowNewPatientForm(false);
+        setNewPatientSeed(null);
     };
 
     const startNewPatient = (q) => {
         const phone = asPhone(q);
-        setNewName(phone ? "" : q);
-        setNewPhone(phone || "");
-        setNewAge("");
-        setNewGender("");
+        setNewPatientSeed({ name: phone ? "" : q, phone: phone || "" });
+        setCreateError("");
         setPatientQuery("");
         setPatientResults([]);
-        setShowNewPatientForm(true);
     };
 
     const backToSearch = () => {
-        setShowNewPatientForm(false);
-        setNewName("");
-        setNewPhone("");
-        setNewAge("");
-        setNewGender("");
+        setNewPatientSeed(null);
+        setCreateError("");
     };
 
-    const hasPatient =
-        !!selectedPatient ||
-        (showNewPatientForm && newName.trim() && newPhone.trim());
+    const saveNewPatient = async (payload) => {
+        setCreatingPatient(true);
+        setCreateError("");
+        try {
+            const p = await createPatient(payload);
+            setSelectedPatient(p);
+            setNewPatientSeed(null);
+        } catch (err) {
+            setCreateError(err.message || "Couldn't add patient.");
+        } finally {
+            setCreatingPatient(false);
+        }
+    };
 
+    const hasPatient = !!selectedPatient;
     const startRecording = async () => {
         setError("");
 
@@ -299,7 +303,7 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
             console.log("Mic error:", err.name, err.message);
             if (err.name === "NotAllowedError") {
                 setError(
-                    "Microphone permission was denied. Enable it for this site in Settings → Safari → Camera & Microphone, then try again.",
+                    "Microphone permission was denied. Enable it for this site in Settings, then try again.",
                 );
             } else if (err.name === "NotFoundError") {
                 setError("No microphone was found on this device.");
@@ -326,12 +330,8 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
     };
 
     const handleSubmit = () => {
-        const hasNewPatient =
-            showNewPatientForm && newName.trim() && newPhone.trim();
-        if (!selectedPatient && !hasNewPatient) {
-            setError(
-                "Select an existing patient, or add a new one with a name and phone number.",
-            );
+        if (!selectedPatient) {
+            setError("Search and select a patient.");
             return;
         }
         if (!file && attachments.length === 0) {
@@ -340,23 +340,11 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
             );
             return;
         }
-        const patientInfo = selectedPatient
-            ? { id: selectedPatient.id }
-            : {
-                  name: newName.trim(),
-                  age: newAge,
-                  gender: newGender,
-                  phone: newPhone.trim(),
-              };
-        onSubmit(file, attachments, patientInfo, sttProvider);
+        onSubmit(file, attachments, { id: selectedPatient.id }, sttProvider);
     };
     const q = patientQuery.trim();
     const showAddPrompt =
-        q.length >= 2 &&
-        !searchingPatient &&
-        searchedFor === q &&
-        patientResults.length === 0;
-
+        q.length >= 2 && !searchingPatient && searchedFor === q;
     return (
         <div className="w-full max-w-2xl mx-auto">
             <div className="bg-surface border border-line rounded-md shadow-panel p-6">
@@ -390,129 +378,83 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                                 Change
                             </button>
                         </div>
-                    ) : showNewPatientForm ? (
-                        <div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <input
-                                    type="text"
-                                    placeholder="Full name"
-                                    value={newName}
-                                    onChange={(e) => setNewName(e.target.value)}
-                                    className="rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
-                                />
-                                <input
-                                    type="tel"
-                                    placeholder="Phone number"
-                                    value={newPhone}
-                                    onChange={(e) =>
-                                        setNewPhone(e.target.value)
-                                    }
-                                    className="rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
-                                />
-                                <input
-                                    type="number"
-                                    placeholder="Age"
-                                    value={newAge}
-                                    onChange={(e) => setNewAge(e.target.value)}
-                                    className="rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
-                                />
-                                <select
-                                    value={newGender}
-                                    onChange={(e) =>
-                                        setNewGender(e.target.value)
-                                    }
-                                    className="rounded border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-clinical-500 outline-none"
-                                >
-                                    <option value="">Gender</option>
-                                    <option value="male">Male</option>
-                                    <option value="female">Female</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={backToSearch}
-                                className="text-xs text-muted underline underline-offset-2 mt-2"
-                            >
-                                Back to search
-                            </button>
-                        </div>
+                    ) : newPatientSeed ? (
+                        <PatientForm
+                            initial={newPatientSeed}
+                            submitLabel="Add Patient"
+                            cancelLabel="Back"
+                            saving={creatingPatient}
+                            error={createError}
+                            onSubmit={saveNewPatient}
+                            onCancel={backToSearch}
+                        />
                     ) : (
                         <div>
                             <SearchInput
                                 value={patientQuery}
                                 onChange={setPatientQuery}
-                                placeholder="Search patient by name or phone"
+                                placeholder="Search Patient by name or phone"
                                 autoFocus
                                 disabled={isRecording}
+                                searching={searchingPatient}
                                 inputClassName="w-full rounded border border-line bg-paper px-3 py-2 text-lg text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
                             />
-                            {searchingPatient && (
-                                <p className="text-xs text-muted mt-2">
-                                    Searching…
-                                </p>
-                            )}
                             {patientResults.length > 0 && (
-                                <ul className="mt-2 rounded border border-line divide-y divide-line overflow-hidden">
-                                    {patientResults.map((p) => (
-                                        <li
-                                            key={p.id}
-                                            className="flex items-stretch"
-                                        >
-                                            <button
-                                                type="button"
-                                                onClick={() => selectPatient(p)}
-                                                className="min-w-0 flex-1 text-left px-3 py-2.5 hover:bg-paper"
+                                <>
+                                    <ul className="mt-2 rounded border border-line  divide-y divide-line overflow-hidden">
+                                        {patientResults.map((p) => (
+                                            <li
+                                                key={p.id}
+                                                className="flex items-center gap-2 pr-2"
                                             >
-                                                <p className="text-sm text-ink truncate">
-                                                    {p.name}
-                                                </p>
-                                                <p className="text-xs text-muted">
-                                                    {[
-                                                        p.age && `${p.age}y`,
-                                                        p.gender,
-                                                        p.phone,
-                                                    ]
-                                                        .filter(Boolean)
-                                                        .join(" · ")}
-                                                </p>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    onViewDetails?.(p)
-                                                }
-                                                className="shrink-0 inline-flex items-center gap-1 px-3 text-xs text-clinical-600 hover:bg-clinical-50"
-                                            >
-                                                View details
-                                                <ChevronRight
-                                                    size={12}
-                                                    strokeWidth={1.75}
-                                                />
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        selectPatient(p)
+                                                    }
+                                                    className="min-w-0 flex-1 text-left px-3 py-3 hover:bg-paper"
+                                                >
+                                                    <p className="text-sm text-ink truncate">
+                                                        {p.name}
+                                                    </p>
+                                                    <p className="text-xs text-muted">
+                                                        {[
+                                                            p.age != null &&
+                                                                `${p.age}y`,
+                                                            p.gender,
+                                                            p.phone,
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(" · ")}
+                                                    </p>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        onViewDetails?.(p)
+                                                    }
+                                                    className="shrink-0 inline-flex items-center gap-1 rounded border border-clinical-500 bg-clinical-500 px-3 py-2 text-sm font-medium text-clinical-50 hover:bg-clinical-500 hover:text-paper transition-colors"
+                                                >
+                                                    View details
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </>
                             )}
+
                             {showAddPrompt && (
-                                <div className="mt-2 rounded border border-line bg-paper px-4 py-3">
-                                    {/* <p className="text-sm text-ink">
-                                        No patient found for “{q}”.
-                                    </p> */}
-                                    <button
-                                        type="button"
-                                        onClick={() => startNewPatient(q)}
-                                        className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-clinical-600 hover:underline"
-                                    >
-                                        <UserPlus
-                                            size={14}
-                                            strokeWidth={1.75}
-                                        />
+                                <button
+                                    type="button"
+                                    onClick={() => startNewPatient(q)}
+                                    className="mt-2 w-full rounded border border-clinical-500 bg-paper px-4 py-3 text-left hover:bg-clinical-50 transition-colors"
+                                >
+                                    <span className="mt-1 inline-flex items-center gap-1.5 text-md font-medium text-clinical-600">
                                         {asPhone(q)
                                             ? `Add a new patient with phone ${asPhone(q)}`
                                             : `Add “${q}” as a new patient`}
-                                    </button>
-                                </div>
+                                    </span>
+                                </button>
                             )}
                         </div>
                     )}
@@ -737,12 +679,7 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                     disabled={
                         isRecording ||
                         (!file && attachments.length === 0) ||
-                        (!selectedPatient &&
-                            !(
-                                showNewPatientForm &&
-                                newName.trim() &&
-                                newPhone.trim()
-                            ))
+                        !selectedPatient
                     }
                     className="mt-6 w-full rounded bg-clinical-500 text-paper py-3 text-base font-medium hover:bg-clinical-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >

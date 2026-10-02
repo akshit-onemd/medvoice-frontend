@@ -9,6 +9,21 @@ import {
     setAuthTokenGetter,
 } from "./api/processAudio";
 import StaffDashboard from "./StaffDashboard";
+import LoadingScreen from "./components/LoadingScreen";
+
+const ACCOUNT_MESSAGES = [
+    "Signing you in securely…",
+    "Checking your account…",
+    "Preparing your workspace…",
+    "Almost there…",
+];
+
+const PROFILE_MESSAGES = [
+    "Loading your profile…",
+    "Fetching your details and signature…",
+    "Setting up your environment…",
+    "Almost there…",
+];
 function ProfileGate() {
     const { getToken } = useAuth();
     setAuthTokenGetter(getToken); // set during render so it's ready before any child request
@@ -48,11 +63,7 @@ function ProfileGate() {
     }
 
     if (profile === undefined) {
-        return (
-            <div className="min-h-screen bg-paper flex items-center justify-center">
-                <p className="text-sm text-muted">Loading…</p>
-            </div>
-        );
+        return <LoadingScreen messages={PROFILE_MESSAGES} />;
     }
 
     if (profile === null) {
@@ -120,11 +131,7 @@ function RoleGate() {
         );
     }
     if (me === undefined) {
-        return (
-            <div className="min-h-screen bg-paper flex items-center justify-center">
-                <p className="text-sm text-muted">Loading…</p>
-            </div>
-        );
+        return <LoadingScreen messages={ACCOUNT_MESSAGES} />;
     }
     if (me.role === "staff")
         return <StaffDashboard doctorName={me.doctor_name} />;

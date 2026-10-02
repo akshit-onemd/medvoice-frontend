@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Mic, Square } from "lucide-react";
+import { Loader2, Mic, Square } from "lucide-react";
 
 const SR =
     typeof window !== "undefined"
@@ -20,6 +20,7 @@ export default function SearchInput({
     inputClassName,
     autoFocus = false,
     disabled = false,
+    searching = false,
 }) {
     const [listening, setListening] = useState(false);
     const [voiceError, setVoiceError] = useState("");
@@ -83,18 +84,34 @@ export default function SearchInput({
                     <button
                         type="button"
                         onClick={toggle}
-                        disabled={disabled}
+                        disabled={disabled || searching}
                         aria-label={
-                            listening ? "Stop voice input" : "Search by voice"
+                            searching
+                                ? "Searching patients"
+                                : listening
+                                  ? "Stop voice input"
+                                  : "Search by voice"
                         }
-                        title={listening ? "Stop" : "Search by voice"}
+                        title={
+                            searching
+                                ? "Searching patients"
+                                : listening
+                                  ? "Stop"
+                                  : "Search by voice"
+                        }
                         className={`absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                             listening
                                 ? "bg-red-600 text-white animate-pulse"
                                 : "text-clinical-600 hover:bg-clinical-50"
                         }`}
                     >
-                        {listening ? (
+                        {searching ? (
+                            <Loader2
+                                size={20}
+                                strokeWidth={2}
+                                className="animate-spin text-clinical-500"
+                            />
+                        ) : listening ? (
                             <Square
                                 size={14}
                                 fill="currentColor"

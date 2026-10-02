@@ -167,7 +167,7 @@ export default function PatientRecords({ patient, onBack }) {
                                         </p>
                                     </div>
                                 </button>
-                                <button
+                                {/* <button
                                     type="button"
                                     onClick={() => downloadConsultation(c.id)}
                                     disabled={downloadingId === c.id}
@@ -187,7 +187,7 @@ export default function PatientRecords({ patient, onBack }) {
                                             strokeWidth={1.75}
                                         />
                                     )}
-                                </button>
+                                </button> */}
                             </li>
                         ))}
                     </ul>
