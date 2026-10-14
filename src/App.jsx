@@ -6,6 +6,7 @@ import BrandMark from "./components/BrandMark";
 import {
     getDoctorProfile,
     getMe,
+    primeDoctorProfile,
     setAuthTokenGetter,
 } from "./api/processAudio";
 import StaffDashboard from "./StaffDashboard";
@@ -24,55 +25,13 @@ const PROFILE_MESSAGES = [
     "Setting up your environment…",
     "Almost there…",
 ];
-function ProfileGate() {
-    const { getToken } = useAuth();
-    setAuthTokenGetter(getToken); // set during render so it's ready before any child request
-
-    const [profile, setProfile] = useState(undefined); // undefined = loading, null = not set up yet
-    const [loadError, setLoadError] = useState("");
-    const [attempt, setAttempt] = useState(0);
-
-    useEffect(() => {
-        let cancelled = false;
-        setLoadError("");
-        getDoctorProfile({ force: true })
-            .then((p) => !cancelled && setProfile(p))
-            .catch(
-                (err) =>
-                    !cancelled &&
-                    setLoadError(err.message || "Couldn't load your profile."),
-            );
-        return () => {
-            cancelled = true;
-        };
-    }, [attempt]);
-
-    if (loadError) {
-        return (
-            <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-3 px-4">
-                <p className="text-sm text-alert-500">{loadError}</p>
-                <button
-                    type="button"
-                    onClick={() => setAttempt((n) => n + 1)}
-                    className="rounded bg-clinical-500 text-paper px-4 py-2 text-sm"
-                >
-                    Try again
-                </button>
-            </div>
-        );
-    }
-
-    if (profile === undefined) {
-        return <LoadingScreen messages={PROFILE_MESSAGES} />;
-    }
+function ProfileGate({ initialProfile }) {
+    const [profile, setProfile] = useState(initialProfile); // null = not set up yet
 
     if (profile === null) {
         return (
             <div className="min-h-screen bg-paper px-4 py-10">
                 <div className="w-full max-w-2xl mx-auto mb-6 flex items-center gap-3">
-                    {/* <div className="flex h-10 w-10 items-center justify-center rounded bg-clinical-500 text-paper">
-                        <Stethoscope size={20} strokeWidth={1.75} />
-                    </div> */}
                     <BrandMark />
                     <h1 className="font-serif text-3xl text-ink leading-tight">
                         OneMD
@@ -105,7 +64,21 @@ function RoleGate() {
         let cancelled = false;
         setLoadError("");
         getMe()
-            .then((m) => !cancelled && setMe(m))
+            .then(async (m) => {
+                if (cancelled) return;
+                if (m.role === "doctor") {
+                    let profile = m.profile;
+                    if (profile === undefined) {
+                        // old backend: key missing. Fetch directly.
+                        profile = await getDoctorProfile({ force: true });
+                    }
+                    if (cancelled) return;
+                    primeDoctorProfile(profile ?? null);
+                    setMe({ ...m, profile: profile ?? null });
+                    return;
+                }
+                setMe(m);
+            })
             .catch(
                 (err) =>
                     !cancelled &&
@@ -131,12 +104,18 @@ function RoleGate() {
         );
     }
     if (me === undefined) {
-        return <LoadingScreen messages={ACCOUNT_MESSAGES} />;
+        return (
+            <LoadingScreen
+                messages={PROFILE_MESSAGES}
+                slowMessage="Server waking up. First load can take up to a minute."
+            />
+        );
     }
     if (me.role === "staff")
         return <StaffDashboard doctorName={me.doctor_name} />;
-    return <ProfileGate />;
+    return <ProfileGate initialProfile={me.profile ?? null} />;
 }
+
 export default function App() {
     return (
         <>

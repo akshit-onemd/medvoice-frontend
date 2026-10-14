@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { UserPlus, Pencil } from "lucide-react";
+import PatientList from "./components/PatientList";
 import { UserButton } from "@clerk/react";
 import SearchInput from "./components/SearchInput";
 import PatientForm from "./components/PatientForm";
+import ServicePicker from "./components/ServicePicker";
+import {
+    getRateCard,
+    getPendingServices,
+    setPendingServices,
+} from "./api/processAudio";
 import {
     searchPatients,
     createPatient,
@@ -29,7 +36,20 @@ export default function StaffDashboard({ doctorName }) {
     const [results, setResults] = useState([]);
     const [searching, setSearching] = useState(false);
     const [searchedFor, setSearchedFor] = useState("");
+    const [refresh, setRefresh] = useState(0);
+    const [catalog, setCatalog] = useState([]);
+    const [taxes, setTaxes] = useState([]);
+    const [svcItems, setSvcItems] = useState([]);
+    const [svcLoading, setSvcLoading] = useState(false);
 
+    useEffect(() => {
+        getRateCard()
+            .then((d) => {
+                setCatalog(d.services);
+                setTaxes(d.taxes);
+            })
+            .catch(() => {});
+    }, []);
     const drName = doctorName
         ? /^dr\b/i.test(doctorName)
             ? doctorName
@@ -72,6 +92,7 @@ export default function StaffDashboard({ doctorName }) {
         setError("");
         setNotice("");
         setQuery("");
+        setSvcItems([]);
     };
 
     const startEdit = (p) => {
@@ -81,6 +102,12 @@ export default function StaffDashboard({ doctorName }) {
         setError("");
         setNotice("");
         setQuery("");
+        setSvcItems([]);
+        setSvcLoading(true);
+        getPendingServices(p.id)
+            .then(setSvcItems)
+            .catch(() => {})
+            .finally(() => setSvcLoading(false));
     };
 
     const closeForm = () => {
@@ -93,26 +120,42 @@ export default function StaffDashboard({ doctorName }) {
     const handleSave = async (payload) => {
         setError("");
         setSaving(true);
+        let saved;
         try {
-            if (mode === "edit") {
-                await updatePatient(editingId, payload);
-                setNotice(`Updated ${payload.name}.`);
-            } else {
-                await createPatient(payload);
-                setNotice(
-                    `Added ${payload.name}. ${drName} can find them by searching.`,
-                );
-            }
-            closeForm();
+            saved =
+                mode === "edit"
+                    ? await updatePatient(editingId, payload)
+                    : await createPatient(payload);
         } catch (err) {
             setError(err.message || "Couldn't save the patient.");
-        } finally {
             setSaving(false);
+            return;
         }
+        try {
+            if (mode === "edit" || svcItems.length) {
+                await setPendingServices(saved.id, svcItems);
+            }
+        } catch (err) {
+            // Patient exists now. Switch to edit so a retry does not duplicate.
+            setMode("edit");
+            setEditingId(saved.id);
+            setInitial(saved);
+            setError(`Patient saved. Services failed: ${err.message}`);
+            setSaving(false);
+            return;
+        }
+        setNotice(
+            mode === "edit"
+                ? `Updated ${saved.name}.`
+                : `Added ${saved.name}. ${drName} can find them by searching.`,
+        );
+        closeForm();
+        setRefresh((n) => n + 1);
+        setSaving(false);
     };
 
     const q = query.trim();
-const showAddPrompt = q.length >= 2 && !searching && searchedFor === q;
+    const showAddPrompt = q.length >= 2 && !searching && searchedFor === q;
     return (
         <div className="min-h-screen bg-paper px-4 pt-24 pb-16">
             <div className="fixed top-0 left-0 right-0 z-50 bg-paper border-b border-line">
@@ -166,6 +209,21 @@ const showAddPrompt = q.length >= 2 && !searching && searchedFor === q;
                             error={error}
                             onSubmit={handleSave}
                             onCancel={closeForm}
+                            extra={
+                                <div className="mt-5">
+                                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted mb-2">
+                                        Services
+                                    </p>
+                                    <ServicePicker
+                                        catalog={catalog}
+                                        taxes={taxes}
+                                        value={svcItems}
+                                        onChange={setSvcItems}
+                                        disabled={svcLoading || saving}
+                                        emptyHint="No services set up. Ask the doctor to add them."
+                                    />
+                                </div>
+                            }
                         />
                     </div>
                 </div>
@@ -175,7 +233,7 @@ const showAddPrompt = q.length >= 2 && !searching && searchedFor === q;
                         <SearchInput
                             value={query}
                             onChange={setQuery}
-                            placeholder="Search Patient by name or phone"
+                            placeholder="Search or Add patient "
                             autoFocus
                             searching={searching}
                             inputClassName={inputCls}
@@ -231,6 +289,19 @@ const showAddPrompt = q.length >= 2 && !searching && searchedFor === q;
                                         : `Add “${q}” as a new patient`}
                                 </span>
                             </button>
+                        )}
+                        {q.length < 2 && (
+                            <div className="mt-4">
+                                <p className="text-xs text-muted mb-2">
+                                    All patients
+                                </p>
+                                <PatientList
+                                    staff
+                                    hideSearch
+                                    refreshKey={refresh}
+                                    onEdit={startEdit}
+                                />
+                            </div>
                         )}
                     </div>
                 </div>

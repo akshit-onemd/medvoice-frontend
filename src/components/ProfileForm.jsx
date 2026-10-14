@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { saveDoctorProfile } from "../api/processAudio";
-
+import { normPhone } from "../utils/patientValidation";
 const CANVAS_W = 600;
 const CANVAS_H = 200;
 const MAX_UPLOAD_W = 500;
@@ -99,7 +99,18 @@ export default function ProfileForm({
     const [hasInk, setHasInk] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+    const [mobile, setMobile] = useState(initial?.mobile || "");
+    const [councilName, setCouncilName] = useState(initial?.council_name || "");
+    const [mobileError, setMobileError] = useState("");
+    const mobileRef = useRef(null);
 
+    const checkMobile = (v) => {
+        const n = normPhone(v);
+        if (!n) return "Mobile number is required";
+        return /^[6-9]\d{9}$/.test(n)
+            ? ""
+            : "Enter a valid 10-digit mobile number";
+    };
     const canvasRef = useRef(null);
     const drawing = useRef(false);
     const last = useRef(null);
@@ -169,7 +180,16 @@ export default function ProfileForm({
     const handleSave = async () => {
         setError("");
         if (!name.trim()) return setError("Name is required.");
-
+        const mErr = checkMobile(mobile);
+        if (mErr) {
+            setMobileError(mErr);
+            mobileRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+            });
+            mobileRef.current?.focus({ preventScroll: true });
+            return;
+        }
         let sig = signature;
         if (editingSig && sigTab === "draw" && hasInk) {
             const drawn = trimCanvas(canvasRef.current);
@@ -184,6 +204,8 @@ export default function ProfileForm({
         try {
             const saved = await saveDoctorProfile({
                 name: name.trim(),
+                mobile,
+                council_name: councilName,
                 qualification,
                 registration_no: registrationNo,
                 email,
@@ -241,17 +263,16 @@ export default function ProfileForm({
                         </div>
                         <div>
                             <label className="block text-sm text-ink mb-1">
-                                Registration number
+                                Clinic / hospital name
                             </label>
                             <input
                                 type="text"
-                                value={registrationNo}
-                                onChange={(e) =>
-                                    setRegistrationNo(e.target.value)
-                                }
+                                value={clinicName}
+                                onChange={(e) => setClinicName(e.target.value)}
                                 className={inputCls}
                             />
                         </div>
+
                         <div>
                             <label className="block text-sm text-ink mb-1">
                                 Email
@@ -265,12 +286,57 @@ export default function ProfileForm({
                         </div>
                         <div>
                             <label className="block text-sm text-ink mb-1">
-                                Clinic / hospital name
+                                Mobile number
+                                <span className="text-alert-500">*</span>
+                            </label>
+                            <input
+                                ref={mobileRef}
+                                type="tel"
+                                inputMode="tel"
+                                maxLength={16}
+                                value={mobile}
+                                onChange={(e) => {
+                                    setMobile(e.target.value);
+                                    if (
+                                        mobileError &&
+                                        checkMobile(e.target.value) === ""
+                                    )
+                                        setMobileError("");
+                                }}
+                                onBlur={() =>
+                                    setMobileError(checkMobile(mobile))
+                                }
+                                placeholder="10-digit mobile number"
+                                className={`${inputCls} ${mobileError ? "border-alert-500" : ""}`}
+                            />
+                            {mobileError && (
+                                <p className="text-xs text-alert-500 mt-1">
+                                    {mobileError}
+                                </p>
+                            )}
+                        </div>
+                        <div>
+                            <label className="block text-sm text-ink mb-1">
+                                Medical council name
                             </label>
                             <input
                                 type="text"
-                                value={clinicName}
-                                onChange={(e) => setClinicName(e.target.value)}
+                                value={councilName}
+                                onChange={(e) => setCouncilName(e.target.value)}
+                                placeholder="Maharashtra Medical Council"
+                                className={inputCls}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-ink mb-1">
+                                Registration number
+                            </label>
+                            <input
+                                type="text"
+                                value={registrationNo}
+                                onChange={(e) =>
+                                    setRegistrationNo(e.target.value)
+                                }
                                 className={inputCls}
                             />
                         </div>

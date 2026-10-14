@@ -22,11 +22,6 @@ export const PROCESSING_STAGES = [
         estimateMs: 4000,
     },
     { key: "extract", label: "Extracting clinical details", estimateMs: 12000 },
-    {
-        key: "verify",
-        label: "Verifying medical codes against UMLS",
-        estimateMs: 6000,
-    },
 
     { key: "finalize", label: "Preparing your summary", estimateMs: 2000 },
 ];
@@ -248,4 +243,65 @@ export async function updatePatient(id, patient) {
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || "Failed to update patient");
     return body.patient;
+}
+export function primeDoctorProfile(p) {
+    doctorProfileCache = p;
+}
+export async function listPatients({
+    q = "",
+    offset = 0,
+    limit = 20,
+    signal,
+} = {}) {
+    const params = new URLSearchParams({
+        q,
+        offset: String(offset),
+        limit: String(limit),
+    });
+    const res = await authFetch(`${API_BASE_URL}/patients?${params}`, {
+        signal,
+    });
+    if (!res.ok) throw new Error("Failed to load patients");
+    return res.json(); // { patients, hasMore }
+}
+async function rcFetch(method, path, body) {
+    const res = await authFetch(`${API_BASE_URL}${path}`, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Request failed");
+    return data;
+}
+
+export const getRateCard = () => rcFetch("GET", "/rate-card");
+export const createTax = (b) => rcFetch("POST", "/taxes", b);
+export const updateTax = (id, b) => rcFetch("PUT", `/taxes/${id}`, b);
+export const deleteTax = (id) => rcFetch("DELETE", `/taxes/${id}`);
+export const createService = (b) => rcFetch("POST", "/services", b);
+export const updateService = (id, b) => rcFetch("PUT", `/services/${id}`, b);
+export const deleteService = (id) => rcFetch("DELETE", `/services/${id}`);
+export const getPendingServices = async (patientId) =>
+    (await rcFetch("GET", `/patients/${patientId}/pending-services`)).items;
+export const setPendingServices = async (patientId, items) =>
+    (await rcFetch("PUT", `/patients/${patientId}/pending-services`, { items }))
+        .items;
+export const getConsultationServices = (id) =>
+    rcFetch("GET", `/consultations/${id}/services`); // { items, source }
+export const saveConsultationServices = async (id, items) =>
+    (await rcFetch("PUT", `/consultations/${id}/services`, { items })).items;
+export const createBill = async (consultationId) =>
+    (await rcFetch("POST", `/consultations/${consultationId}/bill`, {})).bill;
+export async function saveBillLetterhead(payload) {
+    const res = await authFetch(`${API_BASE_URL}/doctor/bill-letterhead`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok)
+        throw new Error(body.error || "Failed to save bill letterhead");
+    doctorProfileCache = body.profile;
+    return body.profile;
 }

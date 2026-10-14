@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, ChevronDown, Download, Pencil } from "lucide-react";
 import { VitalsCard, AllergiesCard } from "./sections/VitalsAndAllergies";
+import { Receipt } from "lucide-react"; // add to existing lucide import
+import BillDialog from "./BillDialog";
 import {
     ConditionsCard,
     ProceduresCard,
@@ -17,12 +19,33 @@ import {
     OtherHistoryCard,
 } from "./sections/HistoryCards";
 import { PrescriptionCard } from "./sections/PrescriptionCards";
-import { AIOverviewCard, SummaryCard } from "./sections/shared";
+import {
+    AIOverviewCard,
+    SummaryCard,
+    CardActionContext,
+} from "./sections/shared";
 import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
 import BrandMark from "./BrandMark";
 import PrescriptionEditor from "./PrescriptionEditor";
 import HistorySectionEditor from "./HistorySectionEditor";
-
+const DEFAULT_VITALS = [
+    {
+        name: "Systolic Blood Pressure",
+        value: "",
+        units: "mmHg",
+        loinc_code: "8480-6",
+    },
+    {
+        name: "Diastolic Blood Pressure",
+        value: "",
+        units: "mmHg",
+        loinc_code: "8462-4",
+    },
+    { name: "Body Temperature", value: "", units: "°F", loinc_code: "8310-5" },
+    { name: "Respiration", value: "", units: "per min", loinc_code: "9279-1" },
+    { name: "Body Weight", value: "", units: "kgs", loinc_code: "29463-7" },
+    { name: "Body Height", value: "", units: "ft", loinc_code: "8302-2" },
+];
 // Treats null/undefined, empty arrays, empty objects, and blank strings as "no data".
 function isEmptyValue(v) {
     if (v === null || v === undefined) return true;
@@ -35,11 +58,12 @@ export default function ResultView({ result, onReset }) {
     // `doc` holds the full structured_data, kept in sync as sections are edited
     // and saved, so the page (and the PDF) always reflects the latest state.
     const [doc, setDoc] = useState(result?.structured_data || {});
+    const [billOpen, setBillOpen] = useState(false);
     const [editingSection, setEditingSection] = useState(null); // null | "prescription" | a section key
-
     useEffect(() => {
         setDoc(result?.structured_data || {});
         setEditingSection(null);
+        setBillOpen(false);
     }, [result]);
 
     const [showTranscript, setShowTranscript] = useState(false);
@@ -47,7 +71,6 @@ export default function ResultView({ result, onReset }) {
     const rx = data.prescription || null;
     const consultationId = result?.saved?.consultation_id;
     const canEdit = !!consultationId && !data.raw_response;
-
     // Applied after any section/prescription save — merges the edited section
     // and the freshly regenerated consultation_summary into local state.
     const saveSection = (key) => (body) => {
@@ -197,11 +220,9 @@ export default function ResultView({ result, onReset }) {
                 onReset={onReset}
                 language={result?.language}
                 onDownload={() =>
-                    downloadConsultationPdf({
-                        ...result,
-                        structured_data: doc,
-                    })
+                    downloadConsultationPdf({ ...result, structured_data: doc })
                 }
+                onBill={canEdit ? () => setBillOpen(true) : undefined}
             />
             {(data.consultation_summary?.overview ||
                 data.consultation_summary?.details?.length > 0) && (
@@ -237,30 +258,41 @@ export default function ResultView({ result, onReset }) {
                                 onCancel={() => setEditingSection(null)}
                             />
                         ) : (
-                            <div>
-                                {canEdit && (
-                                    <div className="flex justify-end mb-1.5">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setEditingSection(s.key)
-                                            }
-                                            className="inline-flex items-center gap-1.5 rounded border border-line bg-surface px-2.5 py-1 text-xs text-ink hover:bg-paper transition-colors"
-                                        >
-                                            <Pencil
-                                                size={11}
-                                                strokeWidth={1.75}
-                                            />
-                                            Edit
-                                        </button>
-                                    </div>
-                                )}
+                            <CardActionContext.Provider
+                                value={
+                                    canEdit
+                                        ? {
+                                              onEdit: () =>
+                                                  setEditingSection(s.key),
+                                              label: s.label,
+                                          }
+                                        : null
+                                }
+                            >
                                 {s.render()}
-                            </div>
+                            </CardActionContext.Provider>
                         )}
                     </div>
                 ))}
             </div>
+            {editingSection &&
+                emptySections.some((s) => s.key === editingSection) && (
+                    <div className="mt-5">
+                        <HistorySectionEditor
+                            sectionKey={editingSection}
+                            consultationId={consultationId}
+                            data={
+                                editingSection === "vitals"
+                                    ? data.vitals?.length
+                                        ? data.vitals
+                                        : DEFAULT_VITALS
+                                    : data[editingSection] || []
+                            }
+                            onSaved={saveSection(editingSection)}
+                            onCancel={() => setEditingSection(null)}
+                        />
+                    </div>
+                )}
             {emptySections.length > 0 && (
                 <div className="mt-5 bg-surface border border-line rounded-md px-5 py-4">
                     <p className="font-serif text-base text-ink leading-tight mb-4">
@@ -300,23 +332,31 @@ export default function ResultView({ result, onReset }) {
                 </div>
             ) : (
                 <div className="mt-5">
-                    {canEdit && (
-                        <div className="flex justify-end mb-2">
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setEditingSection("prescription")
-                                }
-                                className="inline-flex items-center gap-1.5 rounded border border-line bg-surface px-3 py-1.5 text-xs text-ink hover:bg-paper transition-colors"
-                            >
-                                <Pencil size={12} strokeWidth={1.75} />
-                                {rx
-                                    ? "Edit prescription & plan"
-                                    : "Add prescription & plan"}
-                            </button>
-                        </div>
+                    {canEdit && !rx && (
+                        <button
+                            type="button"
+                            onClick={() => setEditingSection("prescription")}
+                            className="inline-flex items-center gap-1.5 rounded border border-line bg-surface px-3 py-1.5 text-xs text-ink hover:bg-paper transition-colors"
+                        >
+                            <Pencil size={12} strokeWidth={1.75} />
+                            Add prescription & plan
+                        </button>
                     )}
-                    {rx && <PrescriptionCard prescription={rx} />}
+                    {rx && (
+                        <CardActionContext.Provider
+                            value={
+                                canEdit
+                                    ? {
+                                          onEdit: () =>
+                                              setEditingSection("prescription"),
+                                          label: "prescription and plan",
+                                      }
+                                    : null
+                            }
+                        >
+                            <PrescriptionCard prescription={rx} />
+                        </CardActionContext.Provider>
+                    )}
                 </div>
             )}
             {/* {result?.saved && (
@@ -374,11 +414,17 @@ export default function ResultView({ result, onReset }) {
                     )}
                 </div>
             )}
+            {billOpen && (
+                <BillDialog
+                    consultationId={consultationId}
+                    onClose={() => setBillOpen(false)}
+                />
+            )}
         </div>
     );
 }
 
-function TopBar({ onReset, language, onDownload }) {
+function TopBar({ onReset, language, onDownload, onBill }) {
     return (
         <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -386,6 +432,15 @@ function TopBar({ onReset, language, onDownload }) {
                     <Stethoscope size={18} strokeWidth={1.75} />
                 </div> */}
                 {/* <BrandMark /> */}
+                <button
+                    type="button"
+                    onClick={onReset}
+                    className="inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-2.5 text-sm text-ink hover:bg-paper transition-colors"
+                >
+                    <ArrowLeft size={16} strokeWidth={1.75} />
+                    {/* <span className="hidden sm:inline">Go Back</span> */}
+                </button>
+
                 <div>
                     <h1 className="font-serif text-xl sm:text-2xl text-ink leading-tight">
                         Consultation summary
@@ -405,19 +460,19 @@ function TopBar({ onReset, language, onDownload }) {
                         className="inline-flex items-center gap-2 rounded bg-clinical-500 px-2.5 py-2.5 text-sm text-paper hover:bg-clinical-600 transition-colors"
                     >
                         <Download size={16} strokeWidth={1.75} />
-                        <span className="hidden sm:inline">
-                            Download Summary
-                        </span>
+                        <span className="hidden sm:inline">Summary</span>
                     </button>
                 )}
-                <button
-                    type="button"
-                    onClick={onReset}
-                    className="inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-2.5 text-sm text-ink hover:bg-paper transition-colors"
-                >
-                    <ArrowLeft size={16} strokeWidth={1.75} />
-                    <span className="hidden sm:inline">Go Back</span>
-                </button>
+                {onBill && (
+                    <button
+                        type="button"
+                        onClick={onBill}
+                        className="inline-flex items-center gap-2 rounded border border-clinical-500 bg-clinical-50 px-2.5 py-2.5 text-sm text-clinical-600 hover:bg-clinical-500 hover:text-paper transition-colors"
+                    >
+                        <Receipt size={16} strokeWidth={1.75} />
+                        <span className="hidden sm:inline">Create Bill</span>
+                    </button>
+                )}
             </div>
         </div>
     );

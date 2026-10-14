@@ -82,6 +82,7 @@ function Select({ value, onChange, options, placeholder, disabled }) {
 
 export default function PatientForm({
     initial,
+    extra = null,
     submitLabel = "Save patient",
     cancelLabel = "Cancel",
     saving = false,
@@ -217,7 +218,6 @@ export default function PatientForm({
                     />
                 </Field>
             </div>
-
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
@@ -229,7 +229,6 @@ export default function PatientForm({
                     className={`transition-transform ${open ? "rotate-180" : ""}`}
                 />
             </button>
-
             {open && (
                 <div>
                     <Section title="Identification">
@@ -367,13 +366,12 @@ export default function PatientForm({
                     </Section>
                 </div>
             )}
-
+            {extra} {/* new */}
             {error && !errorField(error) && (
                 <p ref={errBoxRef} className="mt-4 text-sm text-alert-500">
                     {error}
                 </p>
             )}
-
             <div className="mt-5 flex gap-3">
                 <button
                     type="button"

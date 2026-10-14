@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Users, Settings } from "lucide-react";
 import { UserButton } from "@clerk/react";
+import PatientList from "./components/PatientList";
 import UploadPanel from "./components/UploadPanel";
 import ProcessingView from "./components/ProcessingView";
 import ResultView from "./components/ResultView";
@@ -10,6 +11,9 @@ import ProfileForm from "./components/ProfileForm";
 import { processAudio } from "./api/processAudio";
 import BrandMark from "./components/BrandMark";
 import LetterheadSettings from "./components/LetterheadSettings";
+import useLeaveGuard from "./hooks/useLeaveGuard";
+import RateCardSettings from "./components/RateCardSettings";
+import BillLetterheadSettings from "./components/BillLetterheadSettings";
 // idle -> processing -> result | error
 // records is a parallel top-level stage, reachable from idle/result/error via the nav
 // profile is an overlay view controlled by showProfile, not a stage
@@ -20,7 +24,17 @@ export default function Dashboard({ profile, onProfileChange }) {
     const [result, setResult] = useState(null);
     const [errorMessage, setErrorMessage] = useState("");
     const [showProfile, setShowProfile] = useState(false);
-const [detailPatient, setDetailPatient] = useState(null);
+    const [detailPatient, setDetailPatient] = useState(null);
+    const [draftDirty, setDraftDirty] = useState(false);
+    const [uploadKey, setUploadKey] = useState(0);
+    const [startPatient, setStartPatient] = useState(null);
+    const [detailFrom, setDetailFrom] = useState("home");
+    useLeaveGuard(draftDirty || stage === "processing");
+
+    const confirmLeaveDraft = () =>
+        !draftDirty ||
+        window.confirm("Discard your recording and attachments?");
+
     // Start every screen change at the top of the page
     useEffect(() => {
         window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -55,24 +69,52 @@ const [detailPatient, setDetailPatient] = useState(null);
         }
     };
 
-const reset = () => {
-    setShowProfile(false);
-    setStage("idle");
-    setResult(null);
-    setErrorMessage("");
-    setFileName("");
-    setDetailPatient(null);
-};
+    const reset = () => {
+        setShowProfile(false);
+        setStage("idle");
+        setResult(null);
+        setErrorMessage("");
+        setFileName("");
+        setDetailPatient(null);
+        setStartPatient(null);
+    };
 
-const openPatient = (p) => {
+const openPatient = (p, from = "home") => {
     setShowProfile(false);
     setResult(null);
     setErrorMessage("");
     setFileName("");
     setDetailPatient(p);
+    setDetailFrom(from);
     setStage("patient");
 };
-    // const goToRecords = () => {
+
+const goHome = () => {
+    if (!confirmLeaveDraft()) return;
+    if (draftDirty || startPatient) setUploadKey((k) => k + 1);
+    reset();
+};
+
+const startWith = (p) => {
+    setShowProfile(false);
+    setResult(null);
+    setErrorMessage("");
+    setFileName("");
+    setDetailPatient(null);
+    setStartPatient(p);
+    setUploadKey((k) => k + 1);
+    setStage("idle");
+};
+
+const goPatients = () => {
+    if (!confirmLeaveDraft()) return;
+    setShowProfile(false);
+    setResult(null);
+    setErrorMessage("");
+    setFileName("");
+    setStartPatient(null);
+    setStage("patients");
+};    // const goToRecords = () => {
     //     setShowProfile(false);
     //     setResult(null);
     //     setErrorMessage("");
@@ -105,7 +147,23 @@ const openPatient = (p) => {
                     <div className="ml-auto flex items-center gap-3">
                         <button
                             type="button"
-                            onClick={() => setShowProfile(true)}
+                            onClick={goPatients}
+                            disabled={stage === "processing"}
+                            aria-label="Patients"
+                            className={`inline-flex items-center gap-1.5 text-sm hover:text-ink disabled:opacity-40 ${
+                                stage === "patients" && !showProfile
+                                    ? "text-clinical-600 font-medium"
+                                    : "text-muted"
+                            }`}
+                        >
+                            <Users size={16} strokeWidth={1.75} />
+                            <span className="hidden sm:inline">Patients</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                confirmLeaveDraft() && setShowProfile(true)
+                            }
                             disabled={stage === "processing"}
                             aria-label="Doctor profile"
                             className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink disabled:opacity-40"
@@ -166,15 +224,49 @@ const openPatient = (p) => {
                             onChange={onProfileChange}
                         />
                     </div>
+                    <div className="w-full max-w-2xl mx-auto mt-5">
+                        <BillLetterheadSettings
+                            profile={profile}
+                            onChange={onProfileChange}
+                        />
+                    </div>
+                    <div className="w-full max-w-2xl mx-auto mt-5">
+                        <RateCardSettings />
+                    </div>
                 </>
             ) : (
                 <>
                     {stage === "idle" && (
                         <UploadPanel
+                            key={uploadKey}
+                            initialPatient={startPatient}
                             onSubmit={handleSubmit}
-                            onViewDetails={openPatient}
+                            onViewDetails={(p) =>
+                                confirmLeaveDraft() && openPatient(p, "home")
+                            }
+                            onDirtyChange={setDraftDirty}
                         />
                     )}
+
+                    {stage === "patients" && (
+                        <PatientList
+                            onSelect={startWith}
+                            onViewDetails={(p) => openPatient(p, "patients")}
+                        />
+                    )}
+
+                    {stage === "patient" && detailPatient && (
+                        <PatientRecords
+                            patient={detailPatient}
+                            onBack={() =>
+                                detailFrom === "patients"
+                                    ? setStage("patients")
+                                    : reset()
+                            }
+                            onNewVisit={() => startWith(detailPatient)}
+                        />
+                    )}
+
                     {stage === "processing" && (
                         <ProcessingView
                             currentStage={processingStage}
@@ -186,12 +278,6 @@ const openPatient = (p) => {
                     )}
                     {stage === "error" && (
                         <ErrorView message={errorMessage} onRetry={reset} />
-                    )}
-                    {stage === "patient" && detailPatient && (
-                        <PatientRecords
-                            patient={detailPatient}
-                            onBack={reset}
-                        />
                     )}
                 </>
             )}

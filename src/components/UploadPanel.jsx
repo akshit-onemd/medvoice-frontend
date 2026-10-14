@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
+import RecordingOrb from "./RecordingOrb";
 import {
     Mic,
     Square,
@@ -9,8 +10,9 @@ import {
     FileText,
     Camera,
     SwitchCamera,
-    ChevronRight,
+    Plus,
     UserPlus,
+    Sparkles,
 } from "lucide-react";
 import SearchInput from "./SearchInput";
 import PatientForm from "./PatientForm";
@@ -32,13 +34,19 @@ function formatDuration(seconds) {
     return `${m}:${s}`;
 }
 
-export default function UploadPanel({ onSubmit, onViewDetails }) {
+export default function UploadPanel({
+    onSubmit,
+    onViewDetails,
+    onDirtyChange,
+    initialPatient,
+}) {
     const [file, setFile] = useState(null);
     const [isRecording, setIsRecording] = useState(false);
     const [recordSeconds, setRecordSeconds] = useState(0);
     const [error, setError] = useState("");
     const [attachments, setAttachments] = useState([]);
     const inputRef = useRef(null);
+    const nativeCamRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
     const timerRef = useRef(null);
@@ -50,12 +58,22 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
     const [patientQuery, setPatientQuery] = useState("");
     const [patientResults, setPatientResults] = useState([]);
     const [searchingPatient, setSearchingPatient] = useState(false);
-    const [selectedPatient, setSelectedPatient] = useState(null);
+    const [recStream, setRecStream] = useState(null);
+    const [selectedPatient, setSelectedPatient] = useState(
+        initialPatient || null,
+    );
     const [newPatientSeed, setNewPatientSeed] = useState(null); // null | { name, phone }
     const [creatingPatient, setCreatingPatient] = useState(false);
     const [createError, setCreateError] = useState("");
     const [sttProvider, setSttProvider] = useState("elevenlabs");
     const [searchedFor, setSearchedFor] = useState("");
+    const [fileLabel, setFileLabel] = useState("");
+
+    const wakeLockRef = useRef(null);
+    const releaseWakeLock = () => {
+        wakeLockRef.current?.release().catch(() => {});
+        wakeLockRef.current = null;
+    };
     useEffect(() => {
         const q = patientQuery.trim();
         if (q.length < 2) {
@@ -96,6 +114,32 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
             });
         }
     }, [showCamera]);
+    const hasDraft = isRecording || !!file || attachments.length > 0;
+
+    useEffect(() => {
+        onDirtyChange?.(hasDraft);
+    }, [hasDraft]);
+
+    // On leave: stop recorder, release mic and camera, clear dirty flag
+    useEffect(() => {
+        return () => {
+            clearInterval(timerRef.current);
+            const rec = mediaRecorderRef.current;
+            if (rec && rec.state !== "inactive") {
+                rec.onstop = null;
+                rec.ondataavailable = null;
+                try {
+                    rec.stop();
+                } catch {
+                    /* already stopped */
+                }
+                rec.stream?.getTracks().forEach((t) => t.stop());
+            }
+            cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
+            releaseWakeLock(); // new line
+            onDirtyChange?.(false);
+        };
+    }, []);
     // "98200 98200" -> "9820098200"; returns null if the text isn't a phone number
     const asPhone = (q) => {
         const d = q.replace(/[\s\-+()]/g, "");
@@ -106,6 +150,7 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
         if (!picked) return;
         setError("");
         setFile(picked);
+        setFileLabel(picked.name.replace(/\.[^.]+$/, ""));
     }, []);
 
     const triggerUpload = () => {
@@ -214,7 +259,23 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
         setSelectedPatient(null);
         setNewPatientSeed(null);
     };
-
+    const changePatient = () => {
+        if (isRecording) return;
+        if (
+            (file || attachments.length > 0) &&
+            !window.confirm(
+                "Changing patient removes your recording and attachments. Continue?",
+            )
+        ) {
+            return;
+        }
+        setFile(null);
+        setFileLabel("");
+        setAttachments([]);
+        setError("");
+        if (inputRef.current) inputRef.current.value = "";
+        clearPatient();
+    };
     const startNewPatient = (q) => {
         const phone = asPhone(q);
         setNewPatientSeed({ name: phone ? "" : q, phone: phone || "" });
@@ -288,12 +349,18 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                     },
                 );
                 setFile(recordedFile);
+                setFileLabel("consultation-audio");
                 stream.getTracks().forEach((track) => track.stop());
             };
 
             recorder.start();
+            navigator.wakeLock
+                ?.request("screen")
+                .then((l) => (wakeLockRef.current = l))
+                .catch(() => {});
             mediaRecorderRef.current = recorder;
             setIsRecording(true);
+            setRecStream(stream);
             setRecordSeconds(0);
             timerRef.current = setInterval(
                 () => setRecordSeconds((s) => s + 1),
@@ -320,11 +387,14 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
     const stopRecording = () => {
         mediaRecorderRef.current?.stop();
         setIsRecording(false);
+        setRecStream(null);
         clearInterval(timerRef.current);
+        releaseWakeLock();
     };
 
     const clearFile = () => {
         setFile(null);
+        setFileLabel("");
         setError("");
         if (inputRef.current) inputRef.current.value = "";
     };
@@ -372,8 +442,14 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                             </div>
                             <button
                                 type="button"
-                                onClick={clearPatient}
-                                className="text-xs text-clinical-600 underline underline-offset-2 shrink-0"
+                                onClick={changePatient}
+                                disabled={isRecording}
+                                title={
+                                    isRecording
+                                        ? "Stop recording first"
+                                        : undefined
+                                }
+                                className="text-xs text-clinical-600 underline underline-offset-2 shrink-0 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                             >
                                 Change
                             </button>
@@ -393,7 +469,7 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                             <SearchInput
                                 value={patientQuery}
                                 onChange={setPatientQuery}
-                                placeholder="Search Patient by name or phone"
+                                placeholder="Search or Add patient "
                                 autoFocus
                                 disabled={isRecording}
                                 searching={searchingPatient}
@@ -401,7 +477,7 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                             />
                             {patientResults.length > 0 && (
                                 <>
-                                    <ul className="mt-2 rounded border border-line  divide-y divide-line overflow-hidden">
+                                    <ul className="mt-1 rounded border border-line divide-y divide-line overflow-hidden">
                                         {patientResults.map((p) => (
                                             <li
                                                 key={p.id}
@@ -410,7 +486,7 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        selectPatient(p)
+                                                        onViewDetails?.(p)
                                                     }
                                                     className="min-w-0 flex-1 text-left px-3 py-3 hover:bg-paper"
                                                 >
@@ -431,11 +507,15 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        onViewDetails?.(p)
+                                                        selectPatient(p)
                                                     }
-                                                    className="shrink-0 inline-flex items-center gap-1 rounded border border-clinical-500 bg-clinical-500 px-3 py-2 text-sm font-medium text-clinical-50 hover:bg-clinical-500 hover:text-paper transition-colors"
+                                                    className="shrink-0 inline-flex items-center gap-1 rounded border border-clinical-500 bg-clinical-50 px-3 py-2 text-xs font-medium text-clinical-600 hover:bg-clinical-500 hover:text-paper transition-colors"
                                                 >
-                                                    View details
+                                                    <Plus
+                                                        size={14}
+                                                        strokeWidth={2}
+                                                    />
+                                                    New visit
                                                 </button>
                                             </li>
                                         ))}
@@ -480,6 +560,12 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                     Upload an audio file, or record the conversation directly in
                     your browser.
                 </p> */}
+                {isRecording && (
+                    <div className="mb-5 flex flex-col items-center">
+                        <RecordingOrb stream={recStream} size={200} />
+                        {/* <p className="-mt-2 text-sm text-muted">Recording…</p> */}
+                    </div>
+                )}
                 {!file && (
                     <div className="flex items-stretch gap-3">
                         {!isRecording ? (
@@ -539,10 +625,7 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="text-sm text-ink truncate">
-                                {file.name}
-                            </p>
-                            <p className="text-xs text-muted">
-                                {formatSize(file.size)}
+                                {fileLabel || "consultation-audio"}
                             </p>
                         </div>
                         <button
@@ -557,7 +640,7 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                 )}
                 <div className="mt-6">
                     <p className="text-base text-ink mb-2">
-                        Attach reports or prescriptions (optional)
+                        Attach reports or prescriptions
                     </p>
                     <label className="flex items-center gap-2 rounded border border-dashed border-line px-4 py-3 text-sm text-clinical-600 cursor-pointer hover:bg-paper">
                         <Paperclip size={16} strokeWidth={1.75} />
@@ -575,12 +658,30 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                     </label>
                     <button
                         type="button"
-                        onClick={() => openCamera()}
+                        onClick={() => {
+                            const phone =
+                                window.matchMedia?.(
+                                    "(pointer: coarse)",
+                                ).matches;
+                            if (phone) nativeCamRef.current?.click();
+                            else openCamera();
+                        }}
                         className="flex items-center w-full gap-2 rounded border border-dashed border-line px-4 py-3 text-sm text-clinical-600 hover:bg-paper"
                     >
                         <Camera size={16} strokeWidth={1.75} />
                         Camera
                     </button>
+                    <input
+                        ref={nativeCamRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => {
+                            handleAttachments(e.target.files);
+                            e.target.value = "";
+                        }}
+                    />
 
                     {attachments.length > 0 && (
                         <ul className="mt-3 space-y-2">
@@ -681,8 +782,9 @@ export default function UploadPanel({ onSubmit, onViewDetails }) {
                         (!file && attachments.length === 0) ||
                         !selectedPatient
                     }
-                    className="mt-6 w-full rounded bg-clinical-500 text-paper py-3 text-base font-medium hover:bg-clinical-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="mt-6 flex w-full items-center justify-center gap-2 rounded bg-clinical-500 text-paper py-3 text-base font-medium hover:bg-clinical-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
+                    <Sparkles size={18} strokeWidth={1.75} />
                     Generate summary
                 </button>
             </div>

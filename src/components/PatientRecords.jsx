@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ChevronLeft, Download, FileClock, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, FileClock, Loader2, Plus } from "lucide-react";
 import ResultView from "./ResultView";
 import { AIOverviewCard } from "./sections/shared";
 import {
@@ -11,7 +11,7 @@ import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
 
 const EMPTY_SUMMARY = { overview: "", details: [] };
 
-export default function PatientRecords({ patient, onBack }) {
+export default function PatientRecords({ patient, onBack, onNewVisit }) {
     const [consultations, setConsultations] = useState([]);
     const [loadingConsultations, setLoadingConsultations] = useState(true);
     const [patientSummary, setPatientSummary] = useState(EMPTY_SUMMARY);
@@ -87,11 +87,22 @@ export default function PatientRecords({ patient, onBack }) {
         <div className="w-full max-w-2xl mx-auto">
             <div className="bg-surface border border-line rounded-md shadow-panel p-2">
                 <div className="flex items-center gap-3 rounded border border-clinical-500 bg-clinical-50 px-4 py-3 mb-6">
-                    <div className="flex-1">
-                        <p className="text-base text-ink">{patient.name}</p>
-                        <p className="text-sm text-muted">
+                    <button
+                        type="button"
+                        onClick={onBack}
+                        aria-label="Back"
+                        title="Back"
+                        className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded border border-clinical-500 text-clinical-600 hover:bg-clinical-500 hover:text-paper transition-colors"
+                    >
+                        <ArrowLeft size={16} strokeWidth={1.75} />
+                    </button>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-base text-ink truncate">
+                            {patient.name}
+                        </p>
+                        <p className="text-sm text-muted truncate">
                             {[
-                                patient.age && `${patient.age}y`,
+                                patient.age != null && `${patient.age}y`,
                                 patient.gender,
                                 patient.phone,
                             ]
@@ -99,16 +110,16 @@ export default function PatientRecords({ patient, onBack }) {
                                 .join(" · ")}
                         </p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={onBack}
-                        className="text-xs text-clinical-600 underline underline-offset-2 shrink-0"
-                    >
-                        <span className="inline-flex items-center gap-1">
-                            <ChevronLeft size={12} />
-                            Back to search
-                        </span>
-                    </button>
+                    {onNewVisit && (
+                        <button
+                            type="button"
+                            onClick={onNewVisit}
+                            className="shrink-0 inline-flex items-center gap-1 rounded border border-clinical-500 bg-surface px-3 py-2 text-xs font-medium text-clinical-600 hover:bg-clinical-500 hover:text-paper transition-colors"
+                        >
+                            <Plus size={14} strokeWidth={2} />
+                            New visit
+                        </button>
+                    )}
                 </div>
 
                 {loadingSummary && (
@@ -124,7 +135,9 @@ export default function PatientRecords({ patient, onBack }) {
                             />
                         </div>
                     )}
-
+                <h3 className="font-serif text-base text-ink mb-2">
+                    Past visits
+                </h3>
                 {loadingConsultations && (
                     <p className="text-sm text-muted">Loading records…</p>
                 )}

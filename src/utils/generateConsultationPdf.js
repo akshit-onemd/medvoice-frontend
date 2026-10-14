@@ -20,7 +20,18 @@ const txt = (v) =>
               .trim()
               .replace(/([,;:])(?=[A-Za-z])/g, "$1 ")
               .replace(/([.!?])(?=[A-Z][a-z])/g, "$1 ");
-
+const fmtMobile = (m) => {
+    const d = txt(m);
+    return /^\d{10}$/.test(d) ? `+91 ${d.slice(0, 5)} ${d.slice(5)}` : d;
+};
+const regLine = (d) => {
+    const no = txt(d?.registration_no);
+    const council = txt(d?.council_name);
+    if (no) return `Reg. No: ${no}${council ? ` (${council})` : ""}`;
+    return council ? `Council: ${council}` : "";
+};
+const mobileLine = (d) =>
+    txt(d?.mobile) ? `Mobile: ${fmtMobile(d.mobile)}` : "";
 // Placeholder for empty values
 const or = (v) => txt(v) || "-";
 
@@ -277,9 +288,8 @@ export function generateConsultationPdf(
         const headLines = doctor
             ? [
                   txt(doctor.qualification),
-                  txt(doctor.registration_no)
-                      ? `Reg. No: ${txt(doctor.registration_no)}`
-                      : "",
+                  regLine(doctor),
+                  mobileLine(doctor),
                   txt(doctor.email) ? `Email: ${txt(doctor.email)}` : "",
                   [txt(doctor.clinic_name), txt(doctor.clinic_address)]
                       .filter(Boolean)
@@ -610,7 +620,7 @@ export function generateConsultationPdf(
     // }
     // ---------- Doctor signature ----------
     if (doctor?.signature_data) {
-        ensureSpace(48);
+        ensureSpace(56);
         y += 6;
         const bw = 62;
         const bx = pageW - MARGIN - bw;
@@ -647,16 +657,13 @@ export function generateConsultationPdf(
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         doc.setTextColor(...SUB);
-        [
-            txt(doctor.qualification),
-            txt(doctor.registration_no)
-                ? `Reg. No: ${txt(doctor.registration_no)}`
-                : "",
-        ]
+        [txt(doctor.qualification), regLine(doctor)]
             .filter(Boolean)
             .forEach((line) => {
-                y += 4.5;
-                doc.text(line, bx, y);
+                doc.splitTextToSize(line, bw).forEach((part) => {
+                    y += 4.5;
+                    doc.text(part, bx, y);
+                });
             });
         y += 6;
     }

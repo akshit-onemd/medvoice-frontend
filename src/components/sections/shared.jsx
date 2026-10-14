@@ -1,6 +1,14 @@
-import React from "react";
-import { Check, AlertTriangle, HelpCircle, RefreshCw } from "lucide-react";
-// True if the entry has at least one non-empty string field or a
+import React, { createContext, useContext } from "react";
+import {
+    Check,
+    AlertTriangle,
+    HelpCircle,
+    RefreshCw,
+    Pencil,
+} from "lucide-react";
+
+// Lets ResultView hand an edit action to whichever card renders inside it
+export const CardActionContext = createContext(null); // True if the entry has at least one non-empty string field or a
 // non-empty array field. The backend's template ships with one blank
 // placeholder object per section, so entries that were never filled
 // in by the model need to be filtered out before rendering.
@@ -24,6 +32,7 @@ export function SectionCard({
     tone = "clinical",
     children,
 }) {
+    const action = useContext(CardActionContext);
     return (
         <section className="bg-surface border border-line rounded-md shadow-panel">
             <header className="flex items-center gap-3 px-6 py-4 border-b border-line">
@@ -42,12 +51,22 @@ export function SectionCard({
                         {count}
                     </span>
                 )}
+                {action && (
+                    <button
+                        type="button"
+                        onClick={action.onEdit}
+                        aria-label={`Edit ${action.label || title}`}
+                        title="Edit"
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded border border-line bg-surface text-muted hover:bg-paper hover:text-ink transition-colors"
+                    >
+                        <Pencil size={14} strokeWidth={1.75} />
+                    </button>
+                )}
             </header>
             <div className="px-6 py-5">{children}</div>
         </section>
     );
 }
-
 export function EmptyNote({ children }) {
     return <p className="text-sm text-muted italic">{children}</p>;
 }
