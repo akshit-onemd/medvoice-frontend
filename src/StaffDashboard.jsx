@@ -41,12 +41,13 @@ export default function StaffDashboard({ doctorName }) {
     const [taxes, setTaxes] = useState([]);
     const [svcItems, setSvcItems] = useState([]);
     const [svcLoading, setSvcLoading] = useState(false);
-
+const [bundles, setBundles] = useState([]);
     useEffect(() => {
         getRateCard()
             .then((d) => {
                 setCatalog(d.services);
                 setTaxes(d.taxes);
+                setBundles(d.bundles || []);
             })
             .catch(() => {});
     }, []);
@@ -220,6 +221,7 @@ export default function StaffDashboard({ doctorName }) {
                                         value={svcItems}
                                         onChange={setSvcItems}
                                         disabled={svcLoading || saving}
+                                        bundles={bundles}
                                         emptyHint="No services set up. Ask the doctor to add them."
                                     />
                                 </div>

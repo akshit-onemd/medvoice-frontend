@@ -209,15 +209,72 @@ export function generateBillPdf(bill, { doctor = null, mode = "save" } = {}) {
         y = doc.lastAutoTable.finalY;
     };
 
+    // One row per printed line. Bundles print as a named row with members
+    // listed under it, or as plain service rows with no bundle name.
+    const rowsData = [];
+    let rowNo = 0;
+    for (const it of bill.items) {
+        if (it.type === "bundle") {
+            const lines = Array.isArray(it.lines) ? it.lines : [];
+            if (it.mode === "services") {
+                for (const l of lines) {
+                    rowsData.push({
+                        no: ++rowNo,
+                        name: l.name,
+                        desc: l.description,
+                        members: [],
+                        qty: l.qty,
+                        rate: l.fee,
+                        amount: l.base,
+                    });
+                }
+            } else {
+                rowsData.push({
+                    no: ++rowNo,
+                    name: it.name,
+                    desc: it.description,
+                    members: lines.map(
+                        (l) =>
+                            `${l.name}${l.member_qty > 1 ? ` x ${l.member_qty}` : ""}`,
+                    ),
+                    qty: it.qty,
+                    rate: it.unit_base,
+                    amount: it.base,
+                });
+            }
+        } else {
+            rowsData.push({
+                no: ++rowNo,
+                name: it.name,
+                desc: it.description,
+                members: [],
+                qty: it.qty,
+                rate: it.fee,
+                amount: it.base,
+            });
+        }
+    }
+
+    const PAD = 2.4;
+    const extraLines = (r, width) => {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        const out = [];
+        if (txt(r.desc)) out.push(...doc.splitTextToSize(txt(r.desc), width));
+        for (const m of r.members)
+            out.push(...doc.splitTextToSize(`- ${m}`, width));
+        return out;
+    };
+
     runTable({
         startY: y,
         head: [["#", "Service", "Qty", "Rate (Rs.)", "Amount (Rs.)"]],
-        body: bill.items.map((it, i) => [
-            String(i + 1),
-            it.name,
-            String(it.qty),
-            amt(it.fee),
-            amt(it.base),
+        body: rowsData.map((r) => [
+            String(r.no),
+            r.name,
+            String(r.qty),
+            amt(r.rate),
+            amt(r.amount),
         ]),
         columnStyles: {
             0: { cellWidth: 10, halign: "center" },
@@ -225,6 +282,32 @@ export function generateBillPdf(bill, { doctor = null, mode = "save" } = {}) {
             2: { cellWidth: 16, halign: "center" },
             3: { cellWidth: 30, halign: "right" },
             4: { cellWidth: 34, halign: "right", fontStyle: "bold" },
+        },
+        didParseCell: (d) => {
+            if (d.section !== "body" || d.column.index !== 1) return;
+            const r = rowsData[d.row.index];
+            const innerW = contentW - 90 - PAD * 2; // other columns total 90 mm
+            const extra = extraLines(r, innerW);
+            if (extra.length === 0) return;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9.5);
+            const nameLines = doc.splitTextToSize(txt(r.name), innerW).length;
+            d.cell.styles.valign = "top";
+            d.cell.styles.minCellHeight =
+                PAD * 2 + nameLines * 3.85 + 0.8 + extra.length * 3.25;
+        },
+        didDrawCell: (d) => {
+            if (d.section !== "body" || d.column.index !== 1) return;
+            const r = rowsData[d.row.index];
+            const extra = extraLines(r, d.cell.width - PAD * 2);
+            if (extra.length === 0) return;
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8);
+            doc.setTextColor(...SUB);
+            const top = d.cell.y + PAD + d.cell.text.length * 3.85 + 0.8;
+            extra.forEach((ln, i) =>
+                doc.text(ln, d.cell.x + PAD, top + (i + 0.78) * 3.25),
+            );
         },
     });
     y += 6;

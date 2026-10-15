@@ -13,10 +13,12 @@ import {
     Plus,
     UserPlus,
     Sparkles,
+    ScanLine,
 } from "lucide-react";
 import SearchInput from "./SearchInput";
 import PatientForm from "./PatientForm";
 import { searchPatients, createPatient } from "../api/processAudio";
+import ScanPages from "./ScanPages";
 function formatSize(bytes) {
     if (!bytes) return "";
     const kb = bytes / 1024;
@@ -62,6 +64,7 @@ export default function UploadPanel({
     const [selectedPatient, setSelectedPatient] = useState(
         initialPatient || null,
     );
+    const [scanOpen, setScanOpen] = useState(false);
     const [newPatientSeed, setNewPatientSeed] = useState(null); // null | { name, phone }
     const [creatingPatient, setCreatingPatient] = useState(false);
     const [createError, setCreateError] = useState("");
@@ -114,8 +117,7 @@ export default function UploadPanel({
             });
         }
     }, [showCamera]);
-    const hasDraft = isRecording || !!file || attachments.length > 0;
-
+const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
     useEffect(() => {
         onDirtyChange?.(hasDraft);
     }, [hasDraft]);
@@ -671,6 +673,14 @@ export default function UploadPanel({
                         <Camera size={16} strokeWidth={1.75} />
                         Camera
                     </button>
+                    <button
+                        type="button"
+                        onClick={() => setScanOpen(true)}
+                        className="flex w-full items-center gap-2 rounded border border-dashed border-line px-4 py-3 text-sm text-clinical-600 hover:bg-paper"
+                    >
+                        <ScanLine size={16} strokeWidth={1.75} />
+                        Scan pages
+                    </button>
                     <input
                         ref={nativeCamRef}
                         type="file"
@@ -710,6 +720,16 @@ export default function UploadPanel({
                         </ul>
                     )}
                 </div>
+                {scanOpen && (
+                    <ScanPages
+                        output="images"
+                        onClose={() => setScanOpen(false)}
+                        onDone={(files) => {
+                            setAttachments((prev) => [...prev, ...files]);
+                            setScanOpen(false);
+                        }}
+                    />
+                )}
                 {showCamera && (
                     <div className="fixed inset-0 z-50 bg-ink/90 flex flex-col items-center justify-center p-4">
                         <video

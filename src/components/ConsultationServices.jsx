@@ -10,6 +10,8 @@ export default function ConsultationServices({
     consultationId,
     saveLabel = "Save services",
     requireItems = false,
+    allowAdhoc = false,
+    bundleMode = false,
     onSaved,
 }) {
     const [catalog, setCatalog] = useState([]);
@@ -20,7 +22,7 @@ export default function ConsultationServices({
     const [saving, setSaving] = useState(false);
     const [dirty, setDirty] = useState(false);
     const [error, setError] = useState("");
-
+const [bundles, setBundles] = useState([]);
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
@@ -30,6 +32,7 @@ export default function ConsultationServices({
                 if (cancelled) return;
                 setCatalog(rc.services);
                 setTaxes(rc.taxes);
+                setBundles(rc.bundles || []);
                 setItems(cs.items);
                 setSource(cs.source);
                 setDirty(false);
@@ -87,14 +90,17 @@ export default function ConsultationServices({
             )}
             <ServicePicker
                 catalog={catalog}
+                bundles={bundles}
                 taxes={taxes}
                 value={items}
                 onChange={change}
                 disabled={saving}
+                allowAdhoc={allowAdhoc}
+                bundleMode={bundleMode}
                 emptyHint="No services yet. Add them in Profile, under Service rate card."
-            />
+            />{" "}
             {error && <p className="mt-3 text-sm text-alert-500">{error}</p>}
-            {catalog.length > 0 && (
+            {(catalog.length > 0 || bundles.length > 0 || allowAdhoc) && (
                 <button
                     type="button"
                     onClick={save}

@@ -305,3 +305,6 @@ export async function saveBillLetterhead(payload) {
     doctorProfileCache = body.profile;
     return body.profile;
 }
+export const createBundle = (b) => rcFetch("POST", "/bundles", b);
+export const updateBundle = (id, b) => rcFetch("PUT", `/bundles/${id}`, b);
+export const deleteBundle = (id) => rcFetch("DELETE", `/bundles/${id}`);

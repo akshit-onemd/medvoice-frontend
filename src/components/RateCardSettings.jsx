@@ -9,7 +9,7 @@ import {
     updateService,
     deleteService,
 } from "../api/processAudio";
-
+import BundleSettings from "./BundleSettings";
 const inputCls =
     "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 
@@ -29,8 +29,14 @@ const numOk = (v, min, max) => {
 };
 
 const blankTax = { id: null, name: "", rate: "" };
-const blankSvc = { id: null, name: "", fee: "", tax_id: "", active: true };
-
+const blankSvc = {
+    id: null,
+    name: "",
+    description: "",
+    fee: "",
+    tax_id: "",
+    active: true,
+};
 function Err({ children }) {
     return children ? (
         <span className="block text-xs text-alert-500 mt-1">{children}</span>
@@ -43,7 +49,7 @@ export default function RateCardSettings() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [busyId, setBusyId] = useState(null);
-
+    const [bundles, setBundles] = useState([]);
     const [taxForm, setTaxForm] = useState(blankTax);
     const [taxErr, setTaxErr] = useState({});
     const [taxSaving, setTaxSaving] = useState(false);
@@ -58,6 +64,7 @@ export default function RateCardSettings() {
         const d = await getRateCard();
         setTaxes(d.taxes);
         setServices(d.services);
+        setBundles(d.bundles || []);
     };
 
     useEffect(() => {
@@ -134,6 +141,7 @@ export default function RateCardSettings() {
         try {
             const body = {
                 name,
+                description: svcForm.description.trim(),
                 fee,
                 tax_id: svcForm.tax_id || "",
                 active: svcForm.active,
@@ -153,6 +161,7 @@ export default function RateCardSettings() {
         setSvcForm({
             id: s.id,
             name: s.name,
+            description: s.description || "",
             fee: String(s.fee),
             tax_id: s.tax_id || "",
             active: s.active,
@@ -170,6 +179,7 @@ export default function RateCardSettings() {
         try {
             await updateService(s.id, {
                 name: s.name,
+                description: s.description || "",
                 fee: s.fee,
                 tax_id: s.tax_id || "",
                 active: !s.active,
@@ -337,6 +347,11 @@ export default function RateCardSettings() {
                                         <p className="text-sm text-ink truncate">
                                             {s.name}
                                         </p>
+                                        {s.description && (
+                                            <p className="text-xs text-muted truncate">
+                                                {s.description}
+                                            </p>
+                                        )}
                                         <p className="text-xs text-muted">
                                             {priceLine(s)}
                                         </p>
@@ -442,6 +457,24 @@ export default function RateCardSettings() {
                                 Active
                             </label>
                         </div>
+                        <label className="mt-3 block">
+                            <textarea
+                                className={inputCls}
+                                rows={2}
+                                maxLength={200}
+                                placeholder="Description (optional). Prints on the bill."
+                                value={svcForm.description}
+                                onChange={(e) =>
+                                    setSvcForm({
+                                        ...svcForm,
+                                        description: e.target.value,
+                                    })
+                                }
+                            />
+                            <span className="mt-1 block text-right text-[11px] text-muted">
+                                {svcForm.description.length}/200
+                            </span>
+                        </label>
                         <Err>{svcErr.form}</Err>
                         <div className="mt-3 flex gap-3">
                             {svcForm.id && (
@@ -470,6 +503,12 @@ export default function RateCardSettings() {
                             </button>
                         </div>
                     </div>
+                    <BundleSettings
+                        services={services}
+                        taxes={taxes}
+                        bundles={bundles}
+                        onChanged={reload}
+                    />
                 </>
             )}
         </div>

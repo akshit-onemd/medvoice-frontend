@@ -116,8 +116,10 @@ export default function BillDialog({ consultationId, onClose }) {
                             consultationId={consultationId}
                             saveLabel="Save & continue"
                             requireItems
+                            allowAdhoc
+                            bundleMode
                             onSaved={handleSaved}
-                        />
+                        />{" "}
                     </>
                 )}
 
