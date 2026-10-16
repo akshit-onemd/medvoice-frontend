@@ -77,9 +77,10 @@ export default function BillDialog({ consultationId, onClose }) {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="bill-dialog-title"
-                className="max-h-[92vh] w-full overflow-y-auto rounded-t-lg border border-line bg-surface p-5 shadow-panel outline-none sm:max-w-lg sm:rounded-md"
+                className="flex w-full flex-col overflow-hidden rounded-t-lg border border-line bg-surface shadow-panel outline-none sm:max-w-lg sm:rounded-md"
+                style={{ height: "min(85vh, 640px)", maxHeight: "85dvh" }}
             >
-                <div className="mb-4 flex items-start justify-between gap-3">
+                <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-5">
                     <div>
                         <h2
                             id="bill-dialog-title"
@@ -105,113 +106,123 @@ export default function BillDialog({ consultationId, onClose }) {
                     </button>
                 </div>
 
-                {step === "services" && (
-                    <>
-                        {error && (
-                            <p className="mb-3 text-sm text-alert-500">
-                                {error}
+                <div
+                    className="flex min-h-0 flex-1 flex-col px-5"
+                    style={{
+                        paddingBottom:
+                            "max(1.25rem, env(safe-area-inset-bottom))",
+                    }}
+                >
+                    {step === "services" && (
+                        <>
+                            {error && (
+                                <p className="mb-3 shrink-0 text-sm text-alert-500">
+                                    {error}
+                                </p>
+                            )}
+                            <ConsultationServices
+                                consultationId={consultationId}
+                                saveLabel="Save & continue"
+                                requireItems
+                                allowAdhoc
+                                bundleMode
+                                onSaved={handleSaved}
+                            />
+                        </>
+                    )}
+
+                    {step === "working" && (
+                        <div className="flex flex-1 items-center justify-center">
+                            <p className="text-sm text-muted">Creating bill…</p>
+                        </div>
+                    )}
+
+                    {step === "done" && bill && (
+                        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto text-center">
+                            <CheckCircle2
+                                size={36}
+                                strokeWidth={1.5}
+                                className="text-clinical-600"
+                            />
+                            <p className="mt-2 break-all text-xs text-muted">
+                                {bill.bill_no}
                             </p>
-                        )}
-                        <ConsultationServices
-                            consultationId={consultationId}
-                            saveLabel="Save & continue"
-                            requireItems
-                            allowAdhoc
-                            bundleMode
-                            onSaved={handleSaved}
-                        />
-                    </>
-                )}
+                            <p className="mt-1 text-2xl font-medium text-ink">
+                                {money(bill.total)}
+                            </p>
+                            <p className="mt-3 text-sm text-muted">
+                                {mobile
+                                    ? "Download your bill."
+                                    : "Print or download your bill."}
+                            </p>
 
-                {step === "working" && (
-                    <p className="py-8 text-center text-sm text-muted">
-                        Creating bill…
-                    </p>
-                )}
-
-                {step === "done" && bill && (
-                    <div className="text-center">
-                        <CheckCircle2
-                            size={36}
-                            strokeWidth={1.5}
-                            className="mx-auto text-clinical-600"
-                        />
-                        <p className="mt-2 break-all text-xs text-muted">
-                            {bill.bill_no}
-                        </p>
-                        <p className="mt-1 text-2xl font-medium text-ink">
-                            {money(bill.total)}
-                        </p>
-                        <p className="mt-3 text-sm text-muted">
-                            {mobile
-                                ? "Download your bill."
-                                : "Print or download your bill."}
-                        </p>
-
-                        <div className="mt-4 flex flex-col gap-2">
-                            {!mobile && (
+                            <div className="mt-4 flex w-full flex-col gap-2">
+                                {!mobile && (
+                                    <button
+                                        type="button"
+                                        onClick={() => run("print")}
+                                        disabled={!!busy}
+                                        className="inline-flex items-center justify-center gap-2 rounded bg-clinical-500 py-2.5 text-sm font-medium text-paper hover:bg-clinical-600 disabled:opacity-40"
+                                    >
+                                        <Printer size={16} strokeWidth={1.75} />
+                                        {busy === "print"
+                                            ? "Preparing…"
+                                            : "Print"}
+                                    </button>
+                                )}
                                 <button
                                     type="button"
-                                    onClick={() => run("print")}
+                                    onClick={() => run("download")}
                                     disabled={!!busy}
-                                    className="inline-flex items-center justify-center gap-2 rounded bg-clinical-500 py-2.5 text-sm font-medium text-paper hover:bg-clinical-600 disabled:opacity-40"
+                                    className={`inline-flex items-center justify-center gap-2 rounded py-2.5 text-sm font-medium disabled:opacity-40 ${
+                                        mobile
+                                            ? "bg-clinical-500 text-paper hover:bg-clinical-600"
+                                            : "border border-line bg-surface text-ink hover:bg-paper"
+                                    }`}
                                 >
-                                    <Printer size={16} strokeWidth={1.75} />
-                                    {busy === "print" ? "Preparing…" : "Print"}
+                                    <Download size={16} strokeWidth={1.75} />
+                                    {busy === "download"
+                                        ? "Preparing…"
+                                        : "Download"}
                                 </button>
+                            </div>
+
+                            {notice && (
+                                <p className="mt-3 text-sm text-clinical-600">
+                                    {notice}
+                                </p>
                             )}
-                            <button
-                                type="button"
-                                onClick={() => run("download")}
-                                disabled={!!busy}
-                                className={`inline-flex items-center justify-center gap-2 rounded py-2.5 text-sm font-medium disabled:opacity-40 ${
-                                    mobile
-                                        ? "bg-clinical-500 text-paper hover:bg-clinical-600"
-                                        : "border border-line bg-surface text-ink hover:bg-paper"
-                                }`}
-                            >
-                                <Download size={16} strokeWidth={1.75} />
-                                {busy === "download"
-                                    ? "Preparing…"
-                                    : "Download"}
-                            </button>
-                        </div>
+                            {error && (
+                                <p className="mt-3 text-sm text-alert-500">
+                                    {error}
+                                </p>
+                            )}
 
-                        {notice && (
-                            <p className="mt-3 text-sm text-clinical-600">
-                                {notice}
-                            </p>
-                        )}
-                        {error && (
-                            <p className="mt-3 text-sm text-alert-500">
-                                {error}
-                            </p>
-                        )}
-
-                        <div className="mt-4 flex items-center justify-center gap-4 text-xs">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setStep("services");
-                                    setNotice("");
-                                    setError("");
-                                }}
-                                disabled={!!busy}
-                                className="text-clinical-600 underline underline-offset-2 disabled:opacity-40"
-                            >
-                                Edit services
-                            </button>
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                disabled={!!busy}
-                                className="text-muted underline underline-offset-2 disabled:opacity-40"
-                            >
-                                Done
-                            </button>
+                            <div className="mt-4 flex items-center justify-center gap-4 text-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setStep("services");
+                                        setNotice("");
+                                        setError("");
+                                    }}
+                                    disabled={!!busy}
+                                    className="text-clinical-600 underline underline-offset-2 disabled:opacity-40"
+                                >
+                                    Edit services
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    disabled={!!busy}
+                                    className="text-muted underline underline-offset-2 disabled:opacity-40"
+                                >
+                                    Done
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );

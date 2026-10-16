@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Minus, Plus, PlusCircle, Search, X } from "lucide-react";
 import { money, lineAmounts, bundleAmounts, r2 } from "../utils/money";
 
@@ -30,7 +30,8 @@ export default function ServicePicker({
     const [ad, setAd] = useState(BLANK);
     const [adErr, setAdErr] = useState({});
     const inputRef = useRef(null);
-
+    const listRef = useRef(null);
+    const prevLen = useRef(value.length);
     const byId = useMemo(
         () => Object.fromEntries(catalog.map((s) => [s.id, s])),
         [catalog],
@@ -84,7 +85,15 @@ export default function ServicePicker({
         }
         return scored.sort((a, b) => a.rank - b.rank).map((x) => x.r);
     }, [available, query]);
-
+    useEffect(() => {
+        if (value.length > prevLen.current) {
+            listRef.current?.lastElementChild?.scrollIntoView({
+                block: "nearest",
+                behavior: "smooth",
+            });
+        }
+        prevLen.current = value.length;
+    }, [value.length]);
     const rows = value
         .map((v) => {
             if (v.adhoc) {
@@ -118,7 +127,12 @@ export default function ServicePicker({
         ]);
         setQuery("");
         setActive(0);
-        inputRef.current?.focus();
+        if (window.matchMedia?.("(pointer: coarse)").matches) {
+            setOpen(false);
+            inputRef.current?.blur(); // closes the keyboard so the added item stays visible
+        } else {
+            inputRef.current?.focus();
+        }
     };
     const setQty = (key, qty) =>
         onChange(
@@ -156,6 +170,7 @@ export default function ServicePicker({
                 tax_id: ad.tax_id || null,
             },
         ]);
+        document.activeElement?.blur?.();
         setAd(BLANK);
         setAdErr({});
         setAdhocOpen(false);
@@ -323,7 +338,7 @@ export default function ServicePicker({
                                 className={fieldCls}
                                 placeholder="Service name"
                                 maxLength={80}
-                                autoFocus
+                                
                                 value={ad.name}
                                 onChange={(e) =>
                                     setAd({ ...ad, name: e.target.value })
@@ -415,7 +430,11 @@ export default function ServicePicker({
 
             {rows.length > 0 && (
                 <>
-                    <ul className="mt-3 divide-y divide-line overflow-hidden rounded border border-line">
+                    <ul
+                        ref={listRef}
+                        className="mt-3 divide-y divide-line overflow-hidden rounded border border-line"
+                    >
+                        {" "}
                         {rows.map((r) => {
                             const { v, kind } = r;
                             const key = keyOf(v);
@@ -460,8 +479,8 @@ export default function ServicePicker({
                                                             .join(", ")}
                                                     </p>
                                                     <p className="text-xs text-muted">
-                                                        {money(a.base / v.qty)}
-                                                        × {v.qty} · tax per
+                                                        {money(a.base / v.qty)}×{" "}
+                                                        {v.qty} · tax per
                                                         service
                                                     </p>
                                                 </>
