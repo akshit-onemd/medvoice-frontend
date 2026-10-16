@@ -6,7 +6,7 @@ import React, {
     useState,
 } from "react";
 import { Pause, Play, X } from "lucide-react";
-
+import ConfirmDialog from "./ConfirmDialog";
 const RATES = [1, 1.5, 2];
 const BAR_W = 3;
 const GAP = 2;
@@ -66,6 +66,7 @@ export default function AudioPlayer({
     peaks,
     durationHint = 0,
     label = "",
+    confirmRemove = true,
     onRemove,
 }) {
     const audioRef = useRef(null);
@@ -84,7 +85,7 @@ export default function AudioPlayer({
     const [rateIdx, setRateIdx] = useState(0);
     const [barCount, setBarCount] = useState(48);
     const [error, setError] = useState("");
-
+const [confirmOpen, setConfirmOpen] = useState(false);
     useEffect(() => {
         const u = URL.createObjectURL(file);
         setUrl(u);
@@ -330,7 +331,9 @@ export default function AudioPlayer({
 
                 <button
                     type="button"
-                    onClick={onRemove}
+                    onClick={() =>
+                        confirmRemove ? setConfirmOpen(true) : onRemove()
+                    }
                     aria-label="Remove audio"
                     className="shrink-0 text-muted hover:text-ink"
                 >
@@ -359,6 +362,19 @@ export default function AudioPlayer({
                 onTimeUpdate={() => !playing && refresh()}
                 onSeeked={refresh}
             />
+            {confirmOpen && (
+                <ConfirmDialog
+                    title="Discard Recording?"
+                    message="Are you sure you want to discard this conversation? OneMD will not be able to transcribe any of the information from this conversation."
+                    confirmLabel="Discard"
+                    destructive
+                    onConfirm={() => {
+                        setConfirmOpen(false);
+                        onRemove();
+                    }}
+                    onCancel={() => setConfirmOpen(false)}
+                />
+            )}
         </div>
     );
 }

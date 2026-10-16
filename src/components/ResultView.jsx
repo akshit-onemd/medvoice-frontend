@@ -242,6 +242,50 @@ export default function ResultView({ result, onReset }) {
                 </div>
             )} */}
             {/* <div className="columns-1 lg:columns-2 gap-5"> */}
+            {editingSection === "prescription" ? (
+                <div className="mb-5">
+                    <PrescriptionEditor
+                        consultationId={consultationId}
+                        prescription={rx}
+                        onSaved={saveSection("prescription")}
+                        onCancel={() => setEditingSection(null)}
+                    />
+                </div>
+            ) : (
+                (rx || canEdit) && (
+                    <div className="mb-5">
+                        {canEdit && !rx && (
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setEditingSection("prescription")
+                                }
+                                className="inline-flex items-center gap-1.5 rounded border border-line bg-surface px-3 py-1.5 text-xs text-ink hover:bg-paper transition-colors"
+                            >
+                                <Pencil size={12} strokeWidth={1.75} />
+                                Add prescription & plan
+                            </button>
+                        )}
+                        {rx && (
+                            <CardActionContext.Provider
+                                value={
+                                    canEdit
+                                        ? {
+                                              onEdit: () =>
+                                                  setEditingSection(
+                                                      "prescription",
+                                                  ),
+                                              label: "prescription and plan",
+                                          }
+                                        : null
+                                }
+                            >
+                                <PrescriptionCard prescription={rx} />
+                            </CardActionContext.Provider>
+                        )}
+                    </div>
+                )
+            )}
             <div className="columns-1 gap-5">
                 {filledSections.map((s) => (
                     <div key={s.key} className="break-inside-avoid mb-5">
@@ -321,7 +365,7 @@ export default function ResultView({ result, onReset }) {
                     </div>
                 </div>
             )}
-            {editingSection === "prescription" ? (
+            {/* {editingSection === "prescription" ? (
                 <div className="mt-5">
                     <PrescriptionEditor
                         consultationId={consultationId}
@@ -358,7 +402,7 @@ export default function ResultView({ result, onReset }) {
                         </CardActionContext.Provider>
                     )}
                 </div>
-            )}
+            )} */}
             {/* {result?.saved && (
                 <p className="text-xs text-muted mt-1">
                     Saved to {result.saved.patient_name}'s record
