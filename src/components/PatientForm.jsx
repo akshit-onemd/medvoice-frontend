@@ -221,7 +221,7 @@ export default function PatientForm({
                         onChange={(v) => set("dob", v)}
                         hasError={!!errors.dob}
                     />
-                </Field>{" "}
+                </Field>
                 <Field label="Age (auto)">
                     <input
                         className={`${inputCls} bg-surface text-muted`}

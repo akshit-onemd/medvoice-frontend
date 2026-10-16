@@ -7,7 +7,7 @@ import DraftBanner from "./DraftBanner";
 import useDraft from "../hooks/useDraft";
 
 const inputCls =
-    "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
+    "w-full rounded border border-line px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 const blank = { id: null, name: "", description: "", active: true, items: [] };
 
 export default function BundleSettings({
@@ -233,7 +233,7 @@ useDirtyFlag(bundleDirty);
                                     </p>
                                     <p className="text-xs text-muted">
                                         {b.items.length} service
-                                        {b.items.length === 1 ? "" : "s"} ·{" "}
+                                        {b.items.length === 1 ? "" : "s"} ·
                                         {money(a.total)} incl. tax
                                         {b.active ? "" : " · hidden"}
                                     </p>
@@ -427,8 +427,8 @@ useDirtyFlag(bundleDirty);
                             ))}
                         </ul>
                         <p className="mt-2 text-right text-xs text-muted">
-                            Price {money(preview.base)} + tax{" "}
-                            {money(preview.tax)} ={" "}
+                            Price {money(preview.base)} + tax
+                            {money(preview.tax)} =
                             <span className="text-sm font-medium text-ink">
                                 {money(preview.total)}
                             </span>

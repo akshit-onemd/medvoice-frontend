@@ -119,7 +119,7 @@ export default function BillDialog({ consultationId, onClose }) {
                             allowAdhoc
                             bundleMode
                             onSaved={handleSaved}
-                        />{" "}
+                        />
                     </>
                 )}
 

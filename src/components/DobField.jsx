@@ -241,7 +241,7 @@ function DobSheet({ value, onConfirm, onClear, onCancel }) {
                 </p>
 
                 <div className="relative mt-4 flex gap-2 overflow-hidden">
-                    {" "}
+                    
                     <div
                         className="pointer-events-none absolute inset-x-0 z-0 rounded border-y border-line bg-clinical-50"
                         style={{ top: ITEM_H * 2, height: ITEM_H }}

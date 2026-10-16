@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { updateSection } from "../api/processAudio";
-
+import useFocusNewRow from "../hooks/useFocusNewRow";
 const inputCls =
-    "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
+    "w-full rounded border border-line px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 const s = (v) => (v === null || v === undefined ? "" : String(v));
-
 function Field({ label, children }) {
     return (
         <label className="block">
@@ -16,7 +15,7 @@ function Field({ label, children }) {
 }
 function Row({ onRemove, children }) {
     return (
-        <div className="rounded border border-line bg-paper p-3">
+        <div data-row="" className="rounded border border-line bg-paper p-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {children}
             </div>
@@ -158,12 +157,14 @@ function SimpleListEditor({
     );
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+const [rootRef, focusLast] = useFocusNewRow();
 
     const update = (i, patch) =>
         setRows((r) =>
             r.map((row, idx) => (idx === i ? { ...row, ...patch } : row)),
         );
-    const add = () =>
+    const add = () => {
+        focusLast("[data-row]");
         setRows((r) => [
             ...r,
             {
@@ -171,6 +172,8 @@ function SimpleListEditor({
                 ...(cfg.listField ? { [cfg.listField]: "" } : {}),
             },
         ]);
+    };
+
     const remove = (i) => setRows((r) => r.filter((_, idx) => idx !== i));
 
     const handleSave = async () => {
@@ -195,7 +198,10 @@ function SimpleListEditor({
     };
 
     return (
-        <div className="bg-surface border border-line rounded-md shadow-panel px-6 py-5">
+        <div
+            ref={rootRef}
+            className="bg-surface border border-line rounded-md shadow-panel px-6 py-5"
+        >
             <div className="flex items-center justify-between mb-4">
                 <h2 className="font-serif text-lg text-ink">
                     Edit {cfg.label.toLowerCase()}s
@@ -307,12 +313,15 @@ function FamilyHistoryEditor({ data, consultationId, onSaved, onCancel }) {
     );
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+    const [rootRef, focusLast] = useFocusNewRow();
     const update = (i, patch) =>
         setRows((r) =>
             r.map((row, idx) => (idx === i ? { ...row, ...patch } : row)),
         );
-    const add = () =>
+    const add = () => {
+        focusLast("[data-row]");
         setRows((r) => [...r, { relationship: "", illness: "", notes: "" }]);
+    };
     const remove = (i) => setRows((r) => r.filter((_, idx) => idx !== i));
     const handleSave = async () => {
         setError("");
@@ -336,7 +345,10 @@ function FamilyHistoryEditor({ data, consultationId, onSaved, onCancel }) {
         }
     };
     return (
-        <div className="bg-surface border border-line rounded-md shadow-panel px-6 py-5">
+        <div
+            ref={rootRef}
+            className="bg-surface border border-line rounded-md shadow-panel px-6 py-5"
+        >
             <div className="flex items-center justify-between mb-4">
                 <h2 className="font-serif text-lg text-ink">
                     Edit family history
@@ -401,12 +413,15 @@ function SystemReviewEditor({ data, consultationId, onSaved, onCancel }) {
     );
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+    const [rootRef, focusLast] = useFocusNewRow();
     const update = (i, patch) =>
         setRows((r) =>
             r.map((row, idx) => (idx === i ? { ...row, ...patch } : row)),
         );
-    const add = () =>
+    const add = () => {
+        focusLast("[data-row]");
         setRows((r) => [...r, { name: "", findings: "", notes: "" }]);
+    };
     const remove = (i) => setRows((r) => r.filter((_, idx) => idx !== i));
     const handleSave = async () => {
         setError("");
@@ -430,7 +445,10 @@ function SystemReviewEditor({ data, consultationId, onSaved, onCancel }) {
         }
     };
     return (
-        <div className="bg-surface border border-line rounded-md shadow-panel px-6 py-5">
+        <div
+            ref={rootRef}
+            className="bg-surface border border-line rounded-md shadow-panel px-6 py-5"
+        >
             <div className="flex items-center justify-between mb-4">
                 <h2 className="font-serif text-lg text-ink">
                     Edit system review
@@ -501,13 +519,15 @@ function InvestigationsEditor({ data, consultationId, onSaved, onCancel }) {
     );
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
-
+const [rootRef, focusLast] = useFocusNewRow();
     const updateInv = (i, patch) =>
         setRows((r) =>
             r.map((row, idx) => (idx === i ? { ...row, ...patch } : row)),
         );
-    const addInv = () =>
-        setRows((r) => [...r, { name: "", date: "", readings: [] }]);
+const addInv = () => {
+    focusLast("[data-inv]");
+    setRows((r) => [...r, { name: "", date: "", readings: [] }]);
+};
     const removeInv = (i) => setRows((r) => r.filter((_, idx) => idx !== i));
     const updateReading = (i, j, patch) =>
         setRows((r) =>
@@ -522,27 +542,28 @@ function InvestigationsEditor({ data, consultationId, onSaved, onCancel }) {
                     : row,
             ),
         );
-    const addReading = (i) =>
-        setRows((r) =>
-            r.map((row, idx) =>
-                idx === i
-                    ? {
-                          ...row,
-                          readings: [
-                              ...row.readings,
-                              {
-                                  investigation_name: "",
-                                  result: "",
-                                  unit: "",
-                                  interpretation: "",
-                                  notes: "",
-                              },
-                          ],
-                      }
-                    : row,
-            ),
-        );
-    const removeReading = (i, j) =>
+const addReading = (i) => {
+    focusLast(`[data-inv="${i}"] [data-reading]`);
+    setRows((r) =>
+        r.map((row, idx) =>
+            idx === i
+                ? {
+                      ...row,
+                      readings: [
+                          ...row.readings,
+                          {
+                              investigation_name: "",
+                              result: "",
+                              unit: "",
+                              interpretation: "",
+                              notes: "",
+                          },
+                      ],
+                  }
+                : row,
+        ),
+    );
+};    const removeReading = (i, j) =>
         setRows((r) =>
             r.map((row, idx) =>
                 idx === i
@@ -573,7 +594,10 @@ function InvestigationsEditor({ data, consultationId, onSaved, onCancel }) {
     };
 
     return (
-        <div className="bg-surface border border-line rounded-md shadow-panel px-6 py-5">
+        <div
+            ref={rootRef}
+            className="bg-surface border border-line rounded-md shadow-panel px-6 py-5"
+        >
             <div className="flex items-center justify-between mb-4">
                 <h2 className="font-serif text-lg text-ink">
                     Edit investigations
@@ -584,6 +608,7 @@ function InvestigationsEditor({ data, consultationId, onSaved, onCancel }) {
                 {rows.map((inv, i) => (
                     <div
                         key={i}
+                        data-inv={i}
                         className="rounded border border-line bg-paper p-3"
                     >
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
@@ -610,6 +635,7 @@ function InvestigationsEditor({ data, consultationId, onSaved, onCancel }) {
                             {inv.readings.map((rd, j) => (
                                 <div
                                     key={j}
+                                    data-reading=""
                                     className="rounded border border-line bg-surface p-2"
                                 >
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

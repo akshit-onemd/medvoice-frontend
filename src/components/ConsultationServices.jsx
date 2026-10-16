@@ -98,7 +98,7 @@ const [bundles, setBundles] = useState([]);
                 allowAdhoc={allowAdhoc}
                 bundleMode={bundleMode}
                 emptyHint="No services yet. Add them in Profile, under Service rate card."
-            />{" "}
+            />
             {error && <p className="mt-3 text-sm text-alert-500">{error}</p>}
             {(catalog.length > 0 || bundles.length > 0 || allowAdhoc) && (
                 <button

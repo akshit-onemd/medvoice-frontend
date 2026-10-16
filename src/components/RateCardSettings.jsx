@@ -14,7 +14,7 @@ import { useDirtyFlag } from "../hooks/useDirty";
 import useDraft from "../hooks/useDraft";
 import DraftBanner from "./DraftBanner";
 const inputCls =
-    "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
+    "w-full rounded border border-line px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 
 const money = (n) =>
     "₹" +

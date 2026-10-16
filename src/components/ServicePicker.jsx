@@ -323,6 +323,7 @@ export default function ServicePicker({
                                 className={fieldCls}
                                 placeholder="Service name"
                                 maxLength={80}
+                                autoFocus
                                 value={ad.name}
                                 onChange={(e) =>
                                     setAd({ ...ad, name: e.target.value })
@@ -459,7 +460,7 @@ export default function ServicePicker({
                                                             .join(", ")}
                                                     </p>
                                                     <p className="text-xs text-muted">
-                                                        {money(a.base / v.qty)}{" "}
+                                                        {money(a.base / v.qty)}
                                                         × {v.qty} · tax per
                                                         service
                                                     </p>
