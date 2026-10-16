@@ -10,12 +10,15 @@ import {
     getPendingServices,
     setPendingServices,
 } from "./api/processAudio";
+import useBackNav from "./hooks/useBackNav";
+import { useAnyDirty, isAnyDirty } from "./hooks/useDirty";
 import {
     searchPatients,
     createPatient,
     updatePatient,
 } from "./api/processAudio";
 import BrandMark from "./components/BrandMark";
+import { clearAllDrafts, removeItem } from "./utils/draftStore";
 
 const inputCls =
     "w-full rounded border border-line bg-paper px-3 py-2 text-xl text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
@@ -110,14 +113,31 @@ const [bundles, setBundles] = useState([]);
             .catch(() => {})
             .finally(() => setSvcLoading(false));
     };
-
+const draftKeyFor = (id) => `form:staff-patient-${id || "new"}`;
     const closeForm = () => {
+        removeItem(draftKeyFor(editingId));
         setMode(null);
         setInitial(null);
         setEditingId(null);
         setError("");
     };
-
+const dirty = useAnyDirty();
+useBackNav({
+    active: dirty || !!mode,
+    warnOnUnload: dirty,
+    onBack: () => {
+        if (isAnyDirty()) {
+            if (!window.confirm("You have unsaved changes. Discard them?"))
+                return "stay";
+            clearAllDrafts();
+        }
+        if (mode) {
+            closeForm();
+            return "stay";
+        }
+        return "leave";
+    },
+});
     const handleSave = async (payload) => {
         setError("");
         setSaving(true);
@@ -202,6 +222,7 @@ const [bundles, setBundles] = useState([]);
                         </p> */}
                         <PatientForm
                             key={editingId || "new"}
+                            draftKey={draftKeyFor(editingId)}
                             initial={initial}
                             submitLabel={
                                 mode === "edit" ? "Save changes" : "Add patient"

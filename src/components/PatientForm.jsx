@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import useDraft from "../hooks/useDraft";
+import DraftBanner from "./DraftBanner";
 import {
     TITLES,
     MARITAL,
@@ -19,7 +21,8 @@ import {
     EXTRA_ERROR_KEYS,
     FIELD_ORDER,
 } from "../utils/patientValidation";
-
+import DobField from "./DobField";
+import { useDirtyFlag } from "../hooks/useDirty";
 const inputCls =
     "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none disabled:opacity-50";
 
@@ -82,6 +85,7 @@ function Select({ value, onChange, options, placeholder, disabled }) {
 
 export default function PatientForm({
     initial,
+    draftKey,
     extra = null,
     submitLabel = "Save patient",
     cancelLabel = "Cancel",
@@ -91,6 +95,20 @@ export default function PatientForm({
     onCancel,
 }) {
     const [f, setF] = useState(() => formFrom(initial));
+    const baseline = useRef(JSON.stringify(toPayload(formFrom(initial))));
+    const dirtyNow = JSON.stringify(toPayload(f)) !== baseline.current;
+    useDirtyFlag(dirtyNow);
+
+    const draft = useDraft(draftKey, {
+        snapshot: f,
+        isDirty: dirtyNow,
+        apply: (d) => setF({ ...formFrom(initial), ...d }),
+        baseline: formFrom(initial),
+    });
+    useEffect(() => {
+        if (draft.restored && hasExtras(f)) setOpen(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draft.restored]);
     const [errors, setErrors] = useState({});
     const [open, setOpen] = useState(() => hasExtras(formFrom(initial)));
     const [focus, setFocus] = useState(null); // { key, n }
@@ -181,6 +199,7 @@ export default function PatientForm({
 
     return (
         <div>
+            <DraftBanner draft={draft} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Full name" required error={errors.name}>
                     {inp("name", { placeholder: "Full name" })}
@@ -194,12 +213,15 @@ export default function PatientForm({
                     })}
                 </Field>
                 <Field label="Date of birth" error={errors.dob}>
-                    {inp("dob", {
-                        type: "date",
-                        max: todayISO(),
-                        min: minDobISO(),
-                    })}
-                </Field>
+                    <DobField
+                        ref={(el) => {
+                            refs.current.dob = el;
+                        }}
+                        value={f.dob}
+                        onChange={(v) => set("dob", v)}
+                        hasError={!!errors.dob}
+                    />
+                </Field>{" "}
                 <Field label="Age (auto)">
                     <input
                         className={`${inputCls} bg-surface text-muted`}

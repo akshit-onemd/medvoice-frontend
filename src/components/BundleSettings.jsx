@@ -2,6 +2,9 @@ import React, { useMemo, useRef, useState } from "react";
 import { Minus, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { createBundle, updateBundle, deleteBundle } from "../api/processAudio";
 import { money, bundleAmounts } from "../utils/money";
+import { useDirtyFlag } from "../hooks/useDirty";
+import DraftBanner from "./DraftBanner";
+import useDraft from "../hooks/useDraft";
 
 const inputCls =
     "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
@@ -21,7 +24,36 @@ export default function BundleSettings({
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
     const formRef = useRef(null);
-
+const bundleDirty = form.id
+    ? (() => {
+          const b = bundles.find((x) => x.id === form.id);
+          if (!b) return true;
+          return (
+              form.name !== b.name ||
+              form.description !== (b.description || "") ||
+              form.active !== b.active ||
+              JSON.stringify(form.items) !==
+                  JSON.stringify(
+                      b.items.map((m) => ({
+                          service_id: m.service_id,
+                          qty: m.qty,
+                      })),
+                  )
+          );
+      })()
+    : !!(
+          form.name.trim() ||
+          form.description.trim() ||
+          form.items.length ||
+          form.active === false
+      );
+const draft = useDraft("form:bundle", {
+    snapshot: form,
+    isDirty: bundleDirty,
+    apply: setForm,
+    baseline: blank,
+});
+useDirtyFlag(bundleDirty);
     const svcById = useMemo(
         () => Object.fromEntries(services.map((s) => [s.id, s])),
         [services],
@@ -166,6 +198,7 @@ export default function BundleSettings({
 
     return (
         <div>
+            <DraftBanner draft={draft} />
             <p className="mt-8 text-[11px] font-medium uppercase tracking-wide text-muted">
                 Bundles
             </p>

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { ImagePlus, Wand2, Trash2, Download } from "lucide-react";
 import { withLetterheadStrips } from "../utils/letterheadStrips";
+import { useDirtyFlag } from "../hooks/useDirty";
 
 const MAX_LEN = 1100000;
 const A4_RATIO = 210 / 297;
@@ -342,7 +343,16 @@ export default function LetterheadEditor({
 
     const notA4 = ratio !== null && Math.abs(ratio - A4_RATIO) > 0.06;
     const showEditor = !sameAs || !sameAs.value;
-
+    const savedImage = profile?.[fields.image] || "";
+    const savedTop = Number(profile?.[fields.top]) || 0;
+    const savedBottom = Number(profile?.[fields.bottom]) || 100;
+    useDirtyFlag(
+        showEditor &&
+            !!image &&
+            (image !== savedImage ||
+                top !== savedTop ||
+                bottom !== savedBottom),
+    );
     return (
         <div className="bg-surface border border-line rounded-md shadow-panel p-6">
             <h2 className="font-serif text-xl text-ink">{title}</h2>

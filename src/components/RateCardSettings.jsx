@@ -10,6 +10,9 @@ import {
     deleteService,
 } from "../api/processAudio";
 import BundleSettings from "./BundleSettings";
+import { useDirtyFlag } from "../hooks/useDirty";
+import useDraft from "../hooks/useDraft";
+import DraftBanner from "./DraftBanner";
 const inputCls =
     "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 
@@ -59,7 +62,50 @@ export default function RateCardSettings() {
     const [svcSaving, setSvcSaving] = useState(false);
     const svcFormRef = useRef(null);
     const taxFormRef = useRef(null);
+    const taxDirty = taxForm.id
+        ? (() => {
+              const t = taxes.find((x) => x.id === taxForm.id);
+              return (
+                  !t ||
+                  taxForm.name !== t.name ||
+                  taxForm.rate !== String(t.rate)
+              );
+          })()
+        : !!(taxForm.name.trim() || taxForm.rate.trim());
 
+    const svcDirty = svcForm.id
+        ? (() => {
+              const s = services.find((x) => x.id === svcForm.id);
+              return (
+                  !s ||
+                  svcForm.name !== s.name ||
+                  svcForm.description !== (s.description || "") ||
+                  svcForm.fee !== String(s.fee) ||
+                  svcForm.tax_id !== (s.tax_id || "") ||
+                  svcForm.active !== s.active
+              );
+          })()
+        : !!(
+              svcForm.name.trim() ||
+              svcForm.description.trim() ||
+              svcForm.fee.trim() ||
+              svcForm.tax_id ||
+              svcForm.active === false
+          );
+
+    useDirtyFlag(taxDirty || svcDirty);
+    const taxDraft = useDraft("form:tax", {
+        snapshot: taxForm,
+        isDirty: taxDirty,
+        apply: setTaxForm,
+        baseline: blankTax,
+    });
+    const svcDraft = useDraft("form:service", {
+        snapshot: svcForm,
+        isDirty: svcDirty,
+        apply: setSvcForm,
+        baseline: blankSvc,
+    });
     const reload = async () => {
         const d = await getRateCard();
         setTaxes(d.taxes);
@@ -218,6 +264,7 @@ export default function RateCardSettings() {
 
             {!loading && (
                 <>
+                    <DraftBanner draft={taxDraft} />
                     {/* ---------- Taxes ---------- */}
                     <p className="mt-6 text-[11px] font-medium uppercase tracking-wide text-muted">
                         Tax brackets
@@ -327,7 +374,7 @@ export default function RateCardSettings() {
                             </button>
                         </div>
                     </div>
-
+                    <DraftBanner draft={svcDraft} />
                     {/* ---------- Services ---------- */}
                     <p className="mt-8 text-[11px] font-medium uppercase tracking-wide text-muted">
                         Services

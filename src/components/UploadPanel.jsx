@@ -1,9 +1,19 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
-import RecordingOrb from "./RecordingOrb";
+import LiveWaveform from "./LiveWaveform";
+import AudioPlayer from "./AudioPlayer";
+import { downsample, decodePeaks } from "../utils/audioPeaks";
+import { useDirtyFlag } from "../hooks/useDirty";
+import useHomeDraft from "../hooks/useHomeDraft";
+import {
+    beginRecordingDraft,
+    appendRecordingChunk,
+    removeItem,
+} from "../utils/draftStore";
 import {
     Mic,
     Square,
     UploadCloud,
+    RotateCcw,
     FileAudio,
     X,
     Paperclip,
@@ -39,7 +49,6 @@ function formatDuration(seconds) {
 export default function UploadPanel({
     onSubmit,
     onViewDetails,
-    onDirtyChange,
     initialPatient,
 }) {
     const [file, setFile] = useState(null);
@@ -64,6 +73,12 @@ export default function UploadPanel({
     const [selectedPatient, setSelectedPatient] = useState(
         initialPatient || null,
     );
+    const chunkIndexRef = useRef(0);
+    const peaksRef = useRef([]);
+    const startedAtRef = useRef(0);
+    const peaksToken = useRef(0);
+    const [filePeaks, setFilePeaks] = useState(null);
+    const [fileDuration, setFileDuration] = useState(0);
     const [scanOpen, setScanOpen] = useState(false);
     const [newPatientSeed, setNewPatientSeed] = useState(null); // null | { name, phone }
     const [creatingPatient, setCreatingPatient] = useState(false);
@@ -117,11 +132,9 @@ export default function UploadPanel({
             });
         }
     }, [showCamera]);
-const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
-    useEffect(() => {
-        onDirtyChange?.(hasDraft);
-    }, [hasDraft]);
-
+    const hasDraft =
+        isRecording || !!file || attachments.length > 0 || scanOpen;
+    useDirtyFlag(hasDraft);
     // On leave: stop recorder, release mic and camera, clear dirty flag
     useEffect(() => {
         return () => {
@@ -139,7 +152,7 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
             }
             cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
             releaseWakeLock(); // new line
-            onDirtyChange?.(false);
+            // onDirtyChange?.(false);
         };
     }, []);
     // "98200 98200" -> "9820098200"; returns null if the text isn't a phone number
@@ -153,6 +166,12 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
         setError("");
         setFile(picked);
         setFileLabel(picked.name.replace(/\.[^.]+$/, ""));
+        setFilePeaks(null);
+        setFileDuration(0);
+        const t = ++peaksToken.current;
+        decodePeaks(picked).then((p) => {
+            if (t === peaksToken.current) setFilePeaks(p);
+        });
     }, []);
 
     const triggerUpload = () => {
@@ -276,6 +295,9 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
         setAttachments([]);
         setError("");
         if (inputRef.current) inputRef.current.value = "";
+        setFilePeaks(null);
+        setFileDuration(0);
+        peaksToken.current++;
         clearPatient();
     };
     const startNewPatient = (q) => {
@@ -289,6 +311,7 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
     const backToSearch = () => {
         setNewPatientSeed(null);
         setCreateError("");
+        removeItem("form:new-patient");
     };
 
     const saveNewPatient = async (payload) => {
@@ -298,6 +321,7 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
             const p = await createPatient(payload);
             setSelectedPatient(p);
             setNewPatientSeed(null);
+            removeItem("form:new-patient");
         } catch (err) {
             setCreateError(err.message || "Couldn't add patient.");
         } finally {
@@ -336,8 +360,17 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
                 : new MediaRecorder(stream);
 
             chunksRef.current = [];
+            chunkIndexRef.current = 0;
+            beginRecordingDraft({
+                mimeType: recorder.mimeType || mimeType || "",
+                startedAt: Date.now(),
+                patientName: selectedPatient?.name || "",
+            });
             recorder.ondataavailable = (e) => {
-                if (e.data.size > 0) chunksRef.current.push(e.data);
+                if (e.data.size > 0) {
+                    chunksRef.current.push(e.data);
+                    appendRecordingChunk(chunkIndexRef.current++, e.data);
+                }
             };
             recorder.onstop = () => {
                 const outType = recorder.mimeType || "audio/webm";
@@ -352,10 +385,13 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
                 );
                 setFile(recordedFile);
                 setFileLabel("consultation-audio");
+                setFilePeaks(downsample(peaksRef.current, 256));
+                setFileDuration((Date.now() - startedAtRef.current) / 1000);
                 stream.getTracks().forEach((track) => track.stop());
             };
-
-            recorder.start();
+            peaksRef.current = [];
+            startedAtRef.current = Date.now();
+            recorder.start(1000);
             navigator.wakeLock
                 ?.request("screen")
                 .then((l) => (wakeLockRef.current = l))
@@ -399,6 +435,9 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
         setFileLabel("");
         setError("");
         if (inputRef.current) inputRef.current.value = "";
+        setFilePeaks(null);
+        setFileDuration(0);
+        peaksToken.current++;
     };
 
     const handleSubmit = () => {
@@ -417,9 +456,53 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
     const q = patientQuery.trim();
     const showAddPrompt =
         q.length >= 2 && !searchingPatient && searchedFor === q;
+    const draft = useHomeDraft({
+        skip: !!initialPatient,
+        selectedPatient,
+        newPatientSeed,
+        file,
+        fileLabel,
+        filePeaks,
+        fileDuration,
+        attachments,
+        setters: {
+            setSelectedPatient,
+            setNewPatientSeed,
+            setFile,
+            setFileLabel,
+            setFilePeaks,
+            setFileDuration,
+            setAttachments,
+        },
+    });
     return (
         <div className="w-full max-w-2xl mx-auto">
             <div className="bg-surface border border-line rounded-md shadow-panel p-6">
+                {draft.note && (
+                    <div className="mb-4 flex items-start gap-3 rounded border border-clinical-500 bg-clinical-50 px-3 py-2.5 text-sm text-ink">
+                        <RotateCcw
+                            size={16}
+                            strokeWidth={1.75}
+                            className="mt-0.5 shrink-0 text-clinical-600"
+                        />
+                        <p className="flex-1">{draft.note.text}</p>
+                        <button
+                            type="button"
+                            onClick={draft.discardAll}
+                            className="shrink-0 text-xs text-alert-500 underline underline-offset-2"
+                        >
+                            Discard
+                        </button>
+                        <button
+                            type="button"
+                            onClick={draft.dismissNote}
+                            aria-label="Dismiss"
+                            className="shrink-0 text-muted hover:text-ink"
+                        >
+                            <X size={14} strokeWidth={1.75} />
+                        </button>
+                    </div>
+                )}
                 <div className="mb-6 pb-6 border-b border-line">
                     {/* <h2 className="font-serif text-xl text-ink mb-4">
                         Patient
@@ -458,6 +541,7 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
                         </div>
                     ) : newPatientSeed ? (
                         <PatientForm
+                            draftKey="form:new-patient"
                             initial={newPatientSeed}
                             submitLabel="Add Patient"
                             cancelLabel="Back"
@@ -563,9 +647,8 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
                     your browser.
                 </p> */}
                 {isRecording && (
-                    <div className="mb-5 flex flex-col items-center">
-                        <RecordingOrb stream={recStream} size={200} />
-                        {/* <p className="-mt-2 text-sm text-muted">Recording…</p> */}
+                    <div className="mb-4 rounded-md border border-line bg-paper px-3 py-3">
+                        <LiveWaveform stream={recStream} peaksRef={peaksRef} />
                     </div>
                 )}
                 {!file && (
@@ -621,24 +704,15 @@ const hasDraft = isRecording || !!file || attachments.length > 0 || scanOpen;
                     </p>
                 )}
                 {file && (
-                    <div className="rounded-md border border-line bg-paper p-4 flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-clinical-50 text-clinical-600">
-                            <FileAudio size={18} strokeWidth={1.75} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm text-ink truncate">
-                                {fileLabel || "consultation-audio"}
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={clearFile}
-                            className="text-muted hover:text-ink p-1"
-                            aria-label="Remove file"
-                        >
-                            <X size={16} strokeWidth={1.75} />
-                        </button>
-                    </div>
+                    <AudioPlayer
+                        file={file}
+                        peaks={filePeaks}
+                        durationHint={fileDuration}
+                        label={
+                            fileLabel === "consultation-audio" ? "" : fileLabel
+                        }
+                        onRemove={clearFile}
+                    />
                 )}
                 <div className="mt-6">
                     <p className="text-base text-ink mb-2">

@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { saveDoctorProfile } from "../api/processAudio";
 import { normPhone } from "../utils/patientValidation";
+import { useDirtyFlag } from "../hooks/useDirty";
+import useDraft from "../hooks/useDraft";
+import DraftBanner from "./DraftBanner";
 const CANVAS_W = 600;
 const CANVAS_H = 200;
 const MAX_UPLOAD_W = 500;
@@ -103,7 +106,20 @@ export default function ProfileForm({
     const [councilName, setCouncilName] = useState(initial?.council_name || "");
     const [mobileError, setMobileError] = useState("");
     const mobileRef = useRef(null);
-
+    const snap = JSON.stringify({
+        name,
+        qualification,
+        registrationNo,
+        email,
+        clinicName,
+        clinicAddress,
+        mobile,
+        councilName,
+        signature,
+        hasInk,
+    });
+    const baseline = useRef(snap);
+    useDirtyFlag(snap !== baseline.current);
     const checkMobile = (v) => {
         const n = normPhone(v);
         if (!n) return "Mobile number is required";
@@ -213,6 +229,7 @@ export default function ProfileForm({
                 clinic_address: clinicAddress,
                 signature_data: sig,
             });
+            draft.clear();
             onSaved(saved);
         } catch (err) {
             setError(err.message || "Couldn't save your profile.");
@@ -228,8 +245,48 @@ export default function ProfileForm({
                 : "border-transparent text-muted hover:text-ink"
         }`;
 
+    const draft = useDraft("form:profile", {
+        snapshot: {
+            name,
+            qualification,
+            registrationNo,
+            email,
+            clinicName,
+            clinicAddress,
+            mobile,
+            councilName,
+            signature,
+        },
+        isDirty: snap !== baseline.current,
+        apply: (d) => {
+            setName(d.name ?? "");
+            setQualification(d.qualification ?? "");
+            setRegistrationNo(d.registrationNo ?? "");
+            setEmail(d.email ?? "");
+            setClinicName(d.clinicName ?? "");
+            setClinicAddress(d.clinicAddress ?? "");
+            setMobile(d.mobile ?? "");
+            setCouncilName(d.councilName ?? "");
+            if (d.signature) {
+                setSignature(d.signature);
+                setEditingSig(false);
+            }
+        },
+        baseline: {
+            name: initial?.name || "",
+            qualification: initial?.qualification || "",
+            registrationNo: initial?.registration_no || "",
+            email: initial?.email || "",
+            clinicName: initial?.clinic_name || "",
+            clinicAddress: initial?.clinic_address || "",
+            mobile: initial?.mobile || "",
+            councilName: initial?.council_name || "",
+            signature: initial?.signature_data || "",
+        },
+    });
     return (
         <div className="w-full max-w-2xl mx-auto">
+            <DraftBanner draft={draft} />
             <div className="bg-surface border border-line rounded-md shadow-panel p-6">
                 <h2 className="font-serif text-xl text-ink">{title}</h2>
                 {intro && <p className="text-sm text-muted mt-1">{intro}</p>}

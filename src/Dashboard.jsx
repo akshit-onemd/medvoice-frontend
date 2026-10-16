@@ -11,9 +11,11 @@ import ProfileForm from "./components/ProfileForm";
 import { processAudio } from "./api/processAudio";
 import BrandMark from "./components/BrandMark";
 import LetterheadSettings from "./components/LetterheadSettings";
-import useLeaveGuard from "./hooks/useLeaveGuard";
 import RateCardSettings from "./components/RateCardSettings";
 import BillLetterheadSettings from "./components/BillLetterheadSettings";
+import useBackNav from "./hooks/useBackNav";
+import { clearAllDrafts, clearHomeDrafts } from "./utils/draftStore";
+import { useAnyDirty, isAnyDirty } from "./hooks/useDirty";
 // idle -> processing -> result | error
 // records is a parallel top-level stage, reachable from idle/result/error via the nav
 // profile is an overlay view controlled by showProfile, not a stage
@@ -25,15 +27,10 @@ export default function Dashboard({ profile, onProfileChange }) {
     const [errorMessage, setErrorMessage] = useState("");
     const [showProfile, setShowProfile] = useState(false);
     const [detailPatient, setDetailPatient] = useState(null);
-    const [draftDirty, setDraftDirty] = useState(false);
     const [uploadKey, setUploadKey] = useState(0);
     const [startPatient, setStartPatient] = useState(null);
     const [detailFrom, setDetailFrom] = useState("home");
-    useLeaveGuard(draftDirty || stage === "processing");
-
-    const confirmLeaveDraft = () =>
-        !draftDirty ||
-        window.confirm("Discard your recording and attachments?");
+    const dirty = useAnyDirty();
 
     // Start every screen change at the top of the page
     useEffect(() => {
@@ -62,6 +59,7 @@ export default function Dashboard({ profile, onProfileChange }) {
                 setProcessingStage,
             );
             setResult(data);
+            clearHomeDrafts();
             setStage("result");
         } catch (err) {
             setErrorMessage(err.message || "Something unexpected happened.");
@@ -79,42 +77,80 @@ export default function Dashboard({ profile, onProfileChange }) {
         setStartPatient(null);
     };
 
-const openPatient = (p, from = "home") => {
-    setShowProfile(false);
-    setResult(null);
-    setErrorMessage("");
-    setFileName("");
-    setDetailPatient(p);
-    setDetailFrom(from);
-    setStage("patient");
+const confirmLeaveDraft = () => {
+    if (!isAnyDirty()) return true;
+    if (!window.confirm("You have unsaved changes. Discard them?"))
+        return false;
+    clearAllDrafts();
+    return true;
 };
+    const goHome = () => {
+        if (!confirmLeaveDraft()) return;
+        if (isAnyDirty() || startPatient) setUploadKey((k) => k + 1); // clears a draft
+        reset();
+    };
 
-const goHome = () => {
-    if (!confirmLeaveDraft()) return;
-    if (draftDirty || startPatient) setUploadKey((k) => k + 1);
-    reset();
-};
+    const handleBack = () => {
+        if (stage === "processing") return "stay";
+        if (isAnyDirty()) {
+            if (!window.confirm("You have unsaved changes. Discard them?"))
+                return "stay";
+            clearAllDrafts();
+        }
+        if (showProfile) {
+            setShowProfile(false);
+            return "stay";
+        }
+        if (stage === "patient") {
+            if (detailFrom === "patients") setStage("patients");
+            else reset();
+            return "stay";
+        }
+        if (stage !== "idle") {
+            reset();
+            return "stay";
+        }
+        return "leave"; // Home: exit the app
+    };
 
-const startWith = (p) => {
-    setShowProfile(false);
-    setResult(null);
-    setErrorMessage("");
-    setFileName("");
-    setDetailPatient(null);
-    setStartPatient(p);
-    setUploadKey((k) => k + 1);
-    setStage("idle");
-};
+    useBackNav({
+        active:
+            dirty || stage === "processing" || showProfile || stage !== "idle",
+        warnOnUnload: dirty || stage === "processing",
+        onBack: handleBack,
+    });
 
-const goPatients = () => {
-    if (!confirmLeaveDraft()) return;
-    setShowProfile(false);
-    setResult(null);
-    setErrorMessage("");
-    setFileName("");
-    setStartPatient(null);
-    setStage("patients");
-};    // const goToRecords = () => {
+    const openPatient = (p, from = "home") => {
+        setShowProfile(false);
+        setResult(null);
+        setErrorMessage("");
+        setFileName("");
+        setDetailPatient(p);
+        setDetailFrom(from);
+        setStage("patient");
+    };
+
+
+    const startWith = (p) => {
+        setShowProfile(false);
+        setResult(null);
+        setErrorMessage("");
+        setFileName("");
+        setDetailPatient(null);
+        setStartPatient(p);
+        setUploadKey((k) => k + 1);
+        setStage("idle");
+    };
+
+    const goPatients = () => {
+        if (!confirmLeaveDraft()) return;
+        setShowProfile(false);
+        setResult(null);
+        setErrorMessage("");
+        setFileName("");
+        setStartPatient(null);
+        setStage("patients");
+    }; // const goToRecords = () => {
     //     setShowProfile(false);
     //     setResult(null);
     //     setErrorMessage("");
@@ -244,7 +280,6 @@ const goPatients = () => {
                             onViewDetails={(p) =>
                                 confirmLeaveDraft() && openPatient(p, "home")
                             }
-                            onDirtyChange={setDraftDirty}
                         />
                     )}
 

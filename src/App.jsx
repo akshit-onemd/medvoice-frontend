@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { setDraftUser, purgeExpired } from "./utils/draftStore";
 import { Show, SignIn, UserButton, useAuth } from "@clerk/react";
 import Dashboard from "./Dashboard";
 import ProfileForm from "./components/ProfileForm";
@@ -53,9 +54,12 @@ function ProfileGate({ initialProfile }) {
     return <Dashboard profile={profile} onProfileChange={setProfile} />;
 }
 function RoleGate() {
-    const { getToken } = useAuth();
+    const { getToken, userId } = useAuth();
     setAuthTokenGetter(getToken); // set during render so it's ready before the first request
-
+    setDraftUser(userId);
+    useEffect(() => {
+        purgeExpired();
+    }, []);
     const [me, setMe] = useState(undefined); // undefined = loading
     const [loadError, setLoadError] = useState("");
     const [attempt, setAttempt] = useState(0);
