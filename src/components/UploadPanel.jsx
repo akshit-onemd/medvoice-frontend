@@ -12,6 +12,7 @@ import {
 import {
     Mic,
     Square,
+    Pause,
     UploadCloud,
     RotateCcw,
     FileAudio,
@@ -24,6 +25,7 @@ import {
     UserPlus,
     Sparkles,
     ScanLine,
+    Play,
 } from "lucide-react";
 import SearchInput from "./SearchInput";
 import PatientForm from "./PatientForm";
@@ -86,7 +88,13 @@ export default function UploadPanel({
     const [sttProvider, setSttProvider] = useState("elevenlabs");
     const [searchedFor, setSearchedFor] = useState("");
     const [fileLabel, setFileLabel] = useState("");
-
+    const [isPaused, setIsPaused] = useState(false);
+    const pausedRef = useRef(false);
+    const activeMsRef = useRef(0);
+    const segStartRef = useRef(0);
+    const canPause =
+        typeof MediaRecorder !== "undefined" &&
+        "pause" in MediaRecorder.prototype;
     const wakeLockRef = useRef(null);
     const releaseWakeLock = () => {
         wakeLockRef.current?.release().catch(() => {});
@@ -385,12 +393,20 @@ export default function UploadPanel({
                 );
                 setFile(recordedFile);
                 setFileLabel("consultation-audio");
+
+                const activeMs =
+                    activeMsRef.current +
+                    (pausedRef.current ? 0 : Date.now() - segStartRef.current);
                 setFilePeaks(downsample(peaksRef.current, 256));
-                setFileDuration((Date.now() - startedAtRef.current) / 1000);
+                setFileDuration(activeMs / 1000);
+
                 stream.getTracks().forEach((track) => track.stop());
             };
             peaksRef.current = [];
-            startedAtRef.current = Date.now();
+            activeMsRef.current = 0;
+            segStartRef.current = Date.now();
+            pausedRef.current = false;
+            setIsPaused(false);
             recorder.start(1000);
             navigator.wakeLock
                 ?.request("screen")
@@ -400,10 +416,9 @@ export default function UploadPanel({
             setIsRecording(true);
             setRecStream(stream);
             setRecordSeconds(0);
-            timerRef.current = setInterval(
-                () => setRecordSeconds((s) => s + 1),
-                1000,
-            );
+            timerRef.current = setInterval(() => {
+                if (!pausedRef.current) setRecordSeconds((s) => s + 1);
+            }, 1000);
         } catch (err) {
             console.log("Mic error:", err.name, err.message);
             if (err.name === "NotAllowedError") {
@@ -421,13 +436,32 @@ export default function UploadPanel({
             }
         }
     };
-
+    const togglePause = () => {
+        const rec = mediaRecorderRef.current;
+        if (!rec) return;
+        try {
+            if (rec.state === "recording") {
+                rec.pause();
+                activeMsRef.current += Date.now() - segStartRef.current;
+                pausedRef.current = true;
+                setIsPaused(true);
+            } else if (rec.state === "paused") {
+                rec.resume();
+                segStartRef.current = Date.now();
+                pausedRef.current = false;
+                setIsPaused(false);
+            }
+        } catch {
+            setError("Couldn't pause the recording.");
+        }
+    };
     const stopRecording = () => {
         mediaRecorderRef.current?.stop();
         setIsRecording(false);
         setRecStream(null);
         clearInterval(timerRef.current);
         releaseWakeLock();
+        setIsPaused(false);
     };
 
     const clearFile = () => {
@@ -647,10 +681,19 @@ export default function UploadPanel({
                     your browser.
                 </p> */}
                 {isRecording && (
-                    <div className="mb-4 rounded-md border border-line bg-paper px-3 py-3">
-                        <LiveWaveform stream={recStream} peaksRef={peaksRef} />
+                    <div className="relative mb-4 rounded-md border border-line bg-paper px-3 py-3">
+                        <LiveWaveform
+                            stream={recStream}
+                            peaksRef={peaksRef}
+                            paused={isPaused}
+                        />
+                        {isPaused && (
+                            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink px-3 py-1 text-xs font-medium text-paper">
+                                Paused
+                            </span>
+                        )}
                     </div>
-                )}
+                )}{" "}
                 {!file && (
                     <div className="flex items-stretch gap-3">
                         {!isRecording ? (
@@ -674,7 +717,32 @@ export default function UploadPanel({
                                     strokeWidth={2}
                                     fill="currentColor"
                                 />
-                                Stop · {formatDuration(recordSeconds)}
+                                Stop {formatDuration(recordSeconds)}
+                            </button>
+                        )}
+                        {isRecording && canPause && (
+                            <button
+                                type="button"
+                                onClick={togglePause}
+                                aria-label={
+                                    isPaused
+                                        ? "Resume recording"
+                                        : "Pause recording"
+                                }
+                                className={`flex-[2] inline-flex items-center justify-center gap-1.5 rounded-lg border px-5 py-3 text-base font-semibold transition-colors ${
+                                    isPaused
+                                        ? "border-clinical-500 bg-clinical-500 text-paper hover:bg-clinical-600"
+                                        : "border-line bg-paper text-ink hover:bg-clinical-50"
+                                }`}
+                            >
+                                {isPaused ? (
+                                    <Play size={20} strokeWidth={1.75} />
+                                ) : (
+                                    <Pause size={20} strokeWidth={1.75} />
+                                )}
+                                <span className="hidden sm:inline">
+                                    {isPaused ? "Resume" : "Pause"}
+                                </span>
                             </button>
                         )}
 
@@ -683,7 +751,7 @@ export default function UploadPanel({
                                 type="button"
                                 onClick={triggerUpload}
                                 disabled={!hasPatient}
-                                className="flex-[3] inline-flex flex-col items-center justify-center gap-1.5 rounded-lg border border-line bg-paper text-ink px-3 py-3 text-xs hover:bg-clinical-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-paper"
+                                className="flex-[3] inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-paper text-ink px-3 py-3 text-xs hover:bg-clinical-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-paper"
                             >
                                 <UploadCloud size={18} strokeWidth={1.75} />
                                 Upload

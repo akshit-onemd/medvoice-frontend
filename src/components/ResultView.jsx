@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import { ArrowLeft, ChevronDown, Download, Pencil } from "lucide-react";
 import { VitalsCard, AllergiesCard } from "./sections/VitalsAndAllergies";
 import { Receipt } from "lucide-react"; // add to existing lucide import
+import SuggestedPlanCard from "./SuggestedPlanCard";
+import VoiceFillButton from "./VoiceFillButton";
+import VoiceReviewDialog from "./VoiceReviewDialog";
 import BillDialog from "./BillDialog";
 import {
     ConditionsCard,
@@ -54,24 +57,31 @@ function isEmptyValue(v) {
     if (typeof v === "string") return v.trim() === "";
     return false;
 }
+const cleanDoc = (d) => {
+    if (!d || !d.raw_response) return d || {};
+    const { raw_response, ...rest } = d; // eslint-disable-line no-unused-vars
+    return rest;
+};
 export default function ResultView({ result, onReset }) {
     // `doc` holds the full structured_data, kept in sync as sections are edited
     // and saved, so the page (and the PDF) always reflects the latest state.
-    const [doc, setDoc] = useState(result?.structured_data || {});
+    const [doc, setDoc] = useState(() => cleanDoc(result?.structured_data));
+    const hadFailure = !!result?.structured_data?.raw_response;
     const [billOpen, setBillOpen] = useState(false);
+    const [voiceResult, setVoiceResult] = useState(null);
     const [editingSection, setEditingSection] = useState(null); // null | "prescription" | a section key
     useEffect(() => {
-        setDoc(result?.structured_data || {});
+        setDoc(cleanDoc(result?.structured_data));
         setEditingSection(null);
         setBillOpen(false);
+        setVoiceResult(null);
     }, [result]);
 
     const [showTranscript, setShowTranscript] = useState(false);
     const data = doc;
     const rx = data.prescription || null;
     const consultationId = result?.saved?.consultation_id;
-    const canEdit = !!consultationId && !data.raw_response;
-    // Applied after any section/prescription save — merges the edited section
+    const canEdit = !!consultationId; // Applied after any section/prescription save — merges the edited section
     // and the freshly regenerated consultation_summary into local state.
     const saveSection = (key) => (body) => {
         setDoc((d) => ({
@@ -82,40 +92,23 @@ export default function ResultView({ result, onReset }) {
         }));
         setEditingSection(null);
     };
-
-    // If the model failed to return valid JSON, the backend falls back
-    // to { raw_response: "..." }. Show that plainly instead of an empty chart.
-    if (
-        data.raw_response &&
-        !Object.keys(data).some((k) => k !== "raw_response")
-    ) {
-        return (
-            <div className="w-full max-w-2xl mx-auto">
-                <TopBar
-                    onReset={onReset}
-                    language={result?.language}
-                    onDownload={() =>
-                        downloadConsultationPdf({
-                            ...result,
-                            structured_data: doc,
-                        })
-                    }
-                />
-                <div className="bg-surface border border-line rounded-md shadow-panel p-2">
-                    <h2 className="font-serif text-lg text-ink mb-2">
-                        Couldn't structure this response
-                    </h2>
-                    <p className="text-sm text-muted mb-4">
-                        The extraction model didn't return valid JSON. Here's
-                        what it sent back instead:
-                    </p>
-                    <pre className="text-xs bg-paper border border-line rounded p-4 whitespace-pre-wrap text-ink/80">
-                        {data.raw_response}
-                    </pre>
-                </div>
-            </div>
-        );
-    }
+    const applyVoiceBody = (body) => {
+        setDoc((d) => ({
+            ...d,
+            ...(body.patch || {}),
+            consultation_summary:
+                body.consultation_summary ?? d.consultation_summary,
+        }));
+        setEditingSection(null);
+    };
+    const applySuggestion = (body) =>
+        setDoc((d) => ({
+            ...d,
+            ...(body.prescription ? { prescription: body.prescription } : {}),
+            suggested_plan: body.suggested_plan ?? d.suggested_plan,
+            consultation_summary:
+                body.consultation_summary ?? d.consultation_summary,
+        }));
 
     // vitals is always a fixed-length array of { name, units, value, loinc_code };
     // unrecorded vitals come back with value: "", so filter those out before
@@ -224,6 +217,27 @@ export default function ResultView({ result, onReset }) {
                 }
                 onBill={canEdit ? () => setBillOpen(true) : undefined}
             />
+            {canEdit && (
+                <div className="mb-5">
+                    <VoiceFillButton
+                        section="all"
+                        onResult={setVoiceResult}
+                        disabled={!!editingSection}
+                    />
+                    {editingSection && (
+                        <p className="mt-2 text-xs text-muted">
+                            Finish or cancel the open editor to use voice.
+                        </p>
+                    )}
+                </div>
+            )}
+            {hadFailure && (
+                <div className="mb-5 rounded-md border border-line bg-surface px-5 py-4 text-sm text-muted shadow-panel">
+                    A summary could not be built for this consultation. You can
+                    fill the sections by hand, or record the consultation again.
+                    The transcript is at the bottom of the page.
+                </div>
+            )}
             {(data.consultation_summary?.overview ||
                 data.consultation_summary?.details?.length > 0) && (
                 <div className="mb-5">
@@ -233,6 +247,15 @@ export default function ResultView({ result, onReset }) {
                     />
                 </div>
             )}
+            <SuggestedPlanCard
+                consultationId={consultationId}
+                plan={data.suggested_plan}
+                allergies={data.allergies}
+                rx={rx}
+                canEdit={canEdit}
+                hasTranscript={!!result?.transcript}
+                onChange={applySuggestion}
+            />
             {/* {!isEmptyValue(data.consultation_summary) && (
                 <div className="mb-5">
                     <AIOverviewCard
@@ -462,6 +485,16 @@ export default function ResultView({ result, onReset }) {
                 <BillDialog
                     consultationId={consultationId}
                     onClose={() => setBillOpen(false)}
+                />
+            )}
+            {voiceResult && (
+                <VoiceReviewDialog
+                    consultationId={consultationId}
+                    result={voiceResult}
+                    doc={doc}
+                    editorOpen={!!editingSection}
+                    onApplied={applyVoiceBody}
+                    onClose={() => setVoiceResult(null)}
                 />
             )}
         </div>

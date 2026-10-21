@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { updatePrescription } from "../api/processAudio";
 import useFocusNewRow from "../hooks/useFocusNewRow";
 const inputCls =
     "w-full rounded border border-line px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
-
 const s = (v) => (v === null || v === undefined ? "" : String(v));
 const dosageText = (d) =>
     Array.isArray(d) ? d.map(s).filter(Boolean).join("; ") : s(d);
@@ -49,9 +48,17 @@ function Group({ id, title, addLabel, onAdd, children }) {
     );
 }
 
-function Row({ onRemove, children }) {
+function Row({ onRemove, voice, children }) {
     return (
-        <div data-row="" className="rounded border border-line bg-paper p-3">
+        <div
+            data-row=""
+            data-voice={voice || undefined}
+            className={`rounded border bg-paper p-3 ${
+                voice
+                    ? "border-clinical-500 ring-1 ring-clinical-500"
+                    : "border-line"
+            }`}
+        >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {children}
             </div>
@@ -66,7 +73,6 @@ function Row({ onRemove, children }) {
         </div>
     );
 }
-
 export default function PrescriptionEditor({
     consultationId,
     prescription,
@@ -77,7 +83,6 @@ export default function PrescriptionEditor({
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [rootRef, focusLast] = useFocusNewRow();
-
     const update = (section, i, patch) =>
         setForm((f) => ({
             ...f,
@@ -94,14 +99,17 @@ export default function PrescriptionEditor({
             ...f,
             [section]: f[section].filter((_, idx) => idx !== i),
         }));
-
     const handleSave = async () => {
         setError("");
         setSaving(true);
         try {
+            const strip = (rows) => rows.map(({ _voice, ...r }) => r); // eslint-disable-line no-unused-vars
             const payload = {
                 ...form,
-                medications: form.medications.map((m) => ({
+                symptoms: strip(form.symptoms),
+                diagnosis: strip(form.diagnosis),
+                followup: strip(form.followup),
+                medications: strip(form.medications).map((m) => ({
                     ...m,
                     dosage: s(m.dosage)
                         .split(";")
@@ -126,7 +134,6 @@ export default function PrescriptionEditor({
             <h2 className="font-serif text-lg text-ink mb-4">
                 Edit prescription &amp; plan
             </h2>
-
             <Group
                 id="symptoms"
                 title="Symptoms / complaints"
@@ -136,7 +143,11 @@ export default function PrescriptionEditor({
                 }
             >
                 {form.symptoms.map((e, i) => (
-                    <Row key={i} onRemove={() => remove("symptoms", i)}>
+                    <Row
+                        key={i}
+                        voice={e._voice}
+                        onRemove={() => remove("symptoms", i)}
+                    >
                         <Field label="Symptom">
                             <input
                                 className={inputCls}
@@ -190,7 +201,11 @@ export default function PrescriptionEditor({
                 }
             >
                 {form.medications.map((e, i) => (
-                    <Row key={i} onRemove={() => remove("medications", i)}>
+                    <Row
+                        key={i}
+                        voice={e._voice}
+                        onRemove={() => remove("medications", i)}
+                    >
                         <Field label="Medicine">
                             <input
                                 className={inputCls}
@@ -247,7 +262,11 @@ export default function PrescriptionEditor({
                 onAdd={() => add("diagnosis", { name: "" })}
             >
                 {form.diagnosis.map((e, i) => (
-                    <Row key={i} onRemove={() => remove("diagnosis", i)}>
+                    <Row
+                        key={i}
+                        voice={e._voice}
+                        onRemove={() => remove("diagnosis", i)}
+                    >
                         <div className="sm:col-span-2">
                             <Field label="Diagnosis">
                                 <input
@@ -278,7 +297,12 @@ export default function PrescriptionEditor({
                 }
             >
                 {form.followup.map((e, i) => (
-                    <Row key={i} onRemove={() => remove("followup", i)}>
+                    <Row
+                        key={i}
+                        voice={e._voice}
+                        onRemove={() => remove("followup", i)}
+                    >
+                        {" "}
                         <Field label="Next visit in">
                             <input
                                 className={inputCls}

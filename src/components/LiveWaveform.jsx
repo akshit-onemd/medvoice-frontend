@@ -6,10 +6,16 @@ const STEP = BAR_W + GAP;
 const STEP_MS = 70; // a new bar every 70 ms
 const MIN_H = 3;
 
-export default function LiveWaveform({ stream, peaksRef, height = 48 }) {
+export default function LiveWaveform({
+    stream,
+    peaksRef,
+    height = 48,
+    paused = false,
+}) {
     const wrapRef = useRef(null);
     const canvasRef = useRef(null);
-
+    const pausedRef = useRef(paused);
+    pausedRef.current = paused;
     useEffect(() => {
         const wrap = wrapRef.current;
         const canvas = canvasRef.current;
@@ -71,46 +77,57 @@ export default function LiveWaveform({ stream, peaksRef, height = 48 }) {
             g.fill();
         };
 
-        const draw = (now) => {
-            raf = requestAnimationFrame(draw);
+const render = (progress) => {
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = color;
+    const n = Math.ceil(W / STEP) + 2;
+    for (let k = 0; k < n; k++) {
+        const x = W - BAR_W - k * STEP - progress * STEP;
+        if (x + BAR_W < 0) break;
+        const idx = bars.length - 1 - k;
+        const v = idx >= 0 ? bars[idx] : 0;
+        bar(x, Math.max(MIN_H, v * (H - 4)));
+    }
+};
 
-            let rms = 0;
-            if (analyser) {
-                analyser.getByteTimeDomainData(data);
-                let sum = 0;
-                for (let i = 0; i < data.length; i++) {
-                    const x = (data[i] - 128) / 128;
-                    sum += x * x;
-                }
-                rms = Math.sqrt(sum / data.length);
-            }
-            const lvl = Math.pow(Math.min(1, rms * 5), 0.7);
-            if (lvl > acc) acc = lvl;
+let frozenProgress = 0;
 
-            if (now - lastPush >= STEP_MS) {
-                bars.push(acc);
-                peaksRef?.current.push(acc); // kept for the replay waveform
-                acc = 0;
-                lastPush =
-                    now - lastPush > STEP_MS * 4 ? now : lastPush + STEP_MS;
-                if (bars.length > 1200) bars.splice(0, 600);
-            }
+const draw = (now) => {
+    raf = requestAnimationFrame(draw);
 
-            const progress = reduced
-                ? 0
-                : Math.min(1, (now - lastPush) / STEP_MS);
-            g.clearRect(0, 0, W, H);
-            g.fillStyle = color;
-            const n = Math.ceil(W / STEP) + 2;
-            for (let k = 0; k < n; k++) {
-                const x = W - BAR_W - k * STEP - progress * STEP; // newest at the right, sliding left
-                if (x + BAR_W < 0) break;
-                const idx = bars.length - 1 - k;
-                const v = idx >= 0 ? bars[idx] : 0;
-                bar(x, Math.max(MIN_H, v * (H - 4)));
-            }
-        };
-        raf = requestAnimationFrame(draw);
+    // Paused: no new bars, no sliding. The clock restarts on resume.
+    if (pausedRef.current) {
+        lastPush = now;
+        acc = 0;
+        render(frozenProgress);
+        return;
+    }
+
+    let rms = 0;
+    if (analyser) {
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+            const x = (data[i] - 128) / 128;
+            sum += x * x;
+        }
+        rms = Math.sqrt(sum / data.length);
+    }
+    const lvl = Math.pow(Math.min(1, rms * 5), 0.7);
+    if (lvl > acc) acc = lvl;
+
+    if (now - lastPush >= STEP_MS) {
+        bars.push(acc);
+        peaksRef?.current.push(acc); // kept for the replay waveform
+        acc = 0;
+        lastPush = now - lastPush > STEP_MS * 4 ? now : lastPush + STEP_MS;
+        if (bars.length > 1200) bars.splice(0, 600);
+    }
+
+    const progress = reduced ? 0 : Math.min(1, (now - lastPush) / STEP_MS);
+    frozenProgress = progress;
+    render(progress);
+};        raf = requestAnimationFrame(draw);
 
         return () => {
             cancelAnimationFrame(raf);

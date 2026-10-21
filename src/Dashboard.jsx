@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Plus, Users, Settings } from "lucide-react";
 import { UserButton } from "@clerk/react";
 import PatientList from "./components/PatientList";
@@ -24,7 +24,8 @@ export default function Dashboard({ profile, onProfileChange }) {
     const [fileName, setFileName] = useState("");
     const [processingStage, setProcessingStage] = useState(0);
     const [result, setResult] = useState(null);
-    const [errorMessage, setErrorMessage] = useState("");
+    const [errorInfo, setErrorInfo] = useState(null);
+    const lastRun = useRef(null);
     const [showProfile, setShowProfile] = useState(false);
     const [detailPatient, setDetailPatient] = useState(null);
     const [uploadKey, setUploadKey] = useState(0);
@@ -37,17 +38,15 @@ export default function Dashboard({ profile, onProfileChange }) {
         window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     }, [stage, showProfile]);
 
-    const handleSubmit = async (
-        file,
-        attachments,
-        patientInfo,
-        sttProvider,
-    ) => {
+    const runProcess = async (args, retry = null) => {
+        lastRun.current = args;
+        const { file, attachments, patientInfo, sttProvider } = args;
         setFileName(
             file
                 ? file.name
                 : `${attachments.length} document${attachments.length === 1 ? "" : "s"}`,
         );
+        setErrorInfo(null);
         setStage("processing");
         setProcessingStage(0);
         try {
@@ -57,33 +56,62 @@ export default function Dashboard({ profile, onProfileChange }) {
                 patientInfo,
                 sttProvider,
                 setProcessingStage,
+                retry,
             );
             setResult(data);
-            clearHomeDrafts();
             setStage("result");
+            clearHomeDrafts(); // only now is the draft safe to delete
         } catch (err) {
-            setErrorMessage(err.message || "Something unexpected happened.");
+            setErrorInfo({
+                message:
+                    err.message || "Something went wrong. Please try again.",
+                transcript: err.transcript || null,
+                diarizedTranscript: err.diarizedTranscript || null,
+                language: err.language || null,
+            });
             setStage("error");
         }
     };
 
+    const handleSubmit = (file, attachments, patientInfo, sttProvider) =>
+        runProcess({ file, attachments, patientInfo, sttProvider });
+
+    const handleRetry = () => {
+        const args = lastRun.current;
+        if (!args) {
+            reset();
+            return;
+        }
+        // Transcription worked: send the transcript. Otherwise send the audio again.
+        runProcess(
+            args,
+            errorInfo?.transcript
+                ? {
+                      transcript: errorInfo.transcript,
+                      diarizedTranscript: errorInfo.diarizedTranscript,
+                      language: errorInfo.language,
+                  }
+                : null,
+        );
+    };
     const reset = () => {
         setShowProfile(false);
         setStage("idle");
         setResult(null);
-        setErrorMessage("");
+        setErrorInfo(null);
         setFileName("");
         setDetailPatient(null);
         setStartPatient(null);
+        lastRun.current = null;
     };
 
-const confirmLeaveDraft = () => {
-    if (!isAnyDirty()) return true;
-    if (!window.confirm("You have unsaved changes. Discard them?"))
-        return false;
-    clearAllDrafts();
-    return true;
-};
+    const confirmLeaveDraft = () => {
+        if (!isAnyDirty()) return true;
+        if (!window.confirm("You have unsaved changes. Discard them?"))
+            return false;
+        clearAllDrafts();
+        return true;
+    };
     const goHome = () => {
         if (!confirmLeaveDraft()) return;
         if (isAnyDirty() || startPatient) setUploadKey((k) => k + 1); // clears a draft
@@ -123,18 +151,17 @@ const confirmLeaveDraft = () => {
     const openPatient = (p, from = "home") => {
         setShowProfile(false);
         setResult(null);
-        setErrorMessage("");
+        setErrorInfo(null);
         setFileName("");
         setDetailPatient(p);
         setDetailFrom(from);
         setStage("patient");
     };
 
-
     const startWith = (p) => {
         setShowProfile(false);
         setResult(null);
-        setErrorMessage("");
+        setErrorInfo(null);
         setFileName("");
         setDetailPatient(null);
         setStartPatient(p);
@@ -146,14 +173,14 @@ const confirmLeaveDraft = () => {
         if (!confirmLeaveDraft()) return;
         setShowProfile(false);
         setResult(null);
-        setErrorMessage("");
+        setErrorInfo(null);
         setFileName("");
         setStartPatient(null);
         setStage("patients");
     }; // const goToRecords = () => {
     //     setShowProfile(false);
     //     setResult(null);
-    //     setErrorMessage("");
+    // setErrorInfo(null);
     //     setFileName("");
     //     setStage("records");
     // };
@@ -282,14 +309,12 @@ const confirmLeaveDraft = () => {
                             }
                         />
                     )}
-
                     {stage === "patients" && (
                         <PatientList
                             onSelect={startWith}
                             onViewDetails={(p) => openPatient(p, "patients")}
                         />
                     )}
-
                     {stage === "patient" && detailPatient && (
                         <PatientRecords
                             patient={detailPatient}
@@ -301,7 +326,6 @@ const confirmLeaveDraft = () => {
                             onNewVisit={() => startWith(detailPatient)}
                         />
                     )}
-
                     {stage === "processing" && (
                         <ProcessingView
                             currentStage={processingStage}
@@ -312,7 +336,11 @@ const confirmLeaveDraft = () => {
                         <ResultView result={result} onReset={reset} />
                     )}
                     {stage === "error" && (
-                        <ErrorView message={errorMessage} onRetry={reset} />
+                        <ErrorView
+                            info={errorInfo}
+                            onRetry={handleRetry}
+                            onBack={reset}
+                        />
                     )}
                 </>
             )}

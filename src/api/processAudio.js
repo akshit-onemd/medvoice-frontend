@@ -79,29 +79,30 @@ export async function getPatientSummary(patientId) {
  * progress via onStageChange(stageIndex) while the real request is
  * in flight. Resolves with the parsed JSON body on success.
  */
+const GENERIC_ERROR = "Something went wrong. Please try again.";
+
 export async function processAudio(
     file,
     attachments = [],
     patientInfo,
     sttProvider = "elevenlabs",
     onStageChange,
+    retry = null, // { transcript, diarizedTranscript, language } from a failed run
 ) {
     const formData = new FormData();
-    if (file) formData.append("file", file, file.name || "recording.webm");
+    if (retry?.transcript) {
+        formData.append("transcript", retry.transcript);
+        if (retry.diarizedTranscript)
+            formData.append("diarized_transcript", retry.diarizedTranscript);
+        if (retry.language) formData.append("language", retry.language);
+    } else if (file) {
+        formData.append("file", file, file.name || "recording.webm");
+    }
     attachments.forEach((att) => formData.append("attachments", att, att.name));
     formData.append("stt_provider", sttProvider);
+    formData.append("patient_id", patientInfo.id);
 
-    if (patientInfo.id) {
-        formData.append("patient_id", patientInfo.id);
-    } else {
-        formData.append("patient_name", patientInfo.name);
-        formData.append("patient_phone", patientInfo.phone);
-        if (patientInfo.age) formData.append("patient_age", patientInfo.age);
-        if (patientInfo.gender)
-            formData.append("patient_gender", patientInfo.gender);
-    }
     let cancelled = false;
-    let currentStage = 0;
     onStageChange?.(0);
 
     const timers = [];
@@ -109,15 +110,12 @@ export async function processAudio(
     for (let i = 1; i < PROCESSING_STAGES.length; i++) {
         elapsed += PROCESSING_STAGES[i - 1].estimateMs;
         const stageIndex = i;
-        const timer = setTimeout(() => {
-            if (!cancelled) {
-                currentStage = stageIndex;
-                onStageChange?.(stageIndex);
-            }
-        }, elapsed);
-        timers.push(timer);
+        timers.push(
+            setTimeout(() => {
+                if (!cancelled) onStageChange?.(stageIndex);
+            }, elapsed),
+        );
     }
-
     const clearAllTimers = () => timers.forEach(clearTimeout);
 
     try {
@@ -130,30 +128,34 @@ export async function processAudio(
         clearAllTimers();
         onStageChange?.(PROCESSING_STAGES.length - 1);
 
-        let body;
+        let body = null;
         try {
             body = await response.json();
         } catch {
-            throw new Error(
-                "The server sent back a response that wasn't valid JSON.",
-            );
+            body = null;
         }
 
         if (!response.ok) {
-            throw new Error(
-                body?.error || `Request failed with status ${response.status}`,
-            );
+            const e = new Error(GENERIC_ERROR);
+            if (body?.error === "generation_failed") {
+                e.code = "generation_failed";
+                e.stage = body.stage || "other";
+                e.transcript = body.transcript || null;
+                e.diarizedTranscript = body.diarizedTranscript || null;
+                e.language = body.language || null;
+                throw e;
+            }
+            // 4xx carries a message meant to be read, such as "Patient not found"
+            if (response.status < 500 && body?.error)
+                throw new Error(body.error);
+            throw e;
         }
-
+        if (!body) throw new Error(GENERIC_ERROR);
         return body;
     } catch (err) {
         cancelled = true;
         clearAllTimers();
-        if (err instanceof TypeError) {
-            throw new Error(
-                `Couldn't reach the server at ${API_BASE_URL}. Make sure server.js is running.`,
-            );
-        }
+        if (err instanceof TypeError) throw new Error(GENERIC_ERROR); // network failure
         throw err;
     }
 }
@@ -308,3 +310,31 @@ export async function saveBillLetterhead(payload) {
 export const createBundle = (b) => rcFetch("POST", "/bundles", b);
 export const updateBundle = (id, b) => rcFetch("PUT", `/bundles/${id}`, b);
 export const deleteBundle = (id) => rcFetch("DELETE", `/bundles/${id}`);
+export const generateSuggestionFor = (id) =>
+    rcFetch("POST", `/consultations/${id}/suggestion`, {});
+export const setSuggestionStatus = (id, status) =>
+    rcFetch("PUT", `/consultations/${id}/suggestion`, { status });
+export const approveSuggestion = (id, ids) =>
+    rcFetch("POST", `/consultations/${id}/suggestion/approve`, { ids });
+export async function parseVoice(blob, section) {
+    const fd = new FormData();
+    fd.append(
+        "audio",
+        blob,
+        `voice.${(blob.type || "").includes("mp4") ? "m4a" : "webm"}`,
+    );
+    fd.append("section", section);
+    const res = await authFetch(`${API_BASE_URL}/voice/parse`, {
+        method: "POST",
+        body: fd,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok)
+        throw new Error(
+            body.error ||
+                "Couldn't understand the recording. Please try again.",
+        );
+    return body; // { heard, language, rows, empty }
+}
+export const applyVoiceRows = (id, rows) =>
+    rcFetch("POST", `/consultations/${id}/voice/apply`, { rows });

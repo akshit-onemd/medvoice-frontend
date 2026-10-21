@@ -200,10 +200,7 @@ export async function recoverRecording() {
         { type },
     );
     const last = chunks[chunks.length - 1];
-    const seconds = Math.max(
-        1,
-        (last.savedAt - (meta.startedAt || last.savedAt)) / 1000,
-    );
+    const seconds = Math.max(1, chunks.length);
     return {
         file: new File([blob], `consultation-recovered.${ext}`, { type }),
         seconds,
