@@ -63,7 +63,7 @@ export default function VoiceFillButton({
                     </button>
                 </div>
             ) : busy ? (
-                <div className="inline-flex items-center gap-2 text-sm text-muted">
+                <div className="flex w-full items-center justify-center gap-2 rounded border border-line bg-paper px-3.5 py-2.5 text-sm text-muted">
                     <Loader2 size={16} className="animate-spin" />
                     Understanding…
                 </div>
@@ -75,10 +75,10 @@ export default function VoiceFillButton({
                         cap.start();
                     }}
                     disabled={disabled}
-                    className="inline-flex items-center gap-2 rounded border border-clinical-500 bg-clinical-50 px-3.5 py-2 text-sm font-medium text-clinical-600 transition-colors hover:bg-clinical-500 hover:text-paper disabled:opacity-40"
+                    className="flex w-full items-center justify-center gap-2 rounded border border-clinical-500 bg-clinical-50 px-3.5 py-2.5 text-sm font-medium text-clinical-600 transition-colors hover:bg-clinical-500 hover:text-paper disabled:opacity-40"
                 >
                     <Mic size={16} strokeWidth={1.75} />
-                    Speak to fill
+                    Speak to Edit
                 </button>
             )}
             {shownError && (

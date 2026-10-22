@@ -51,7 +51,7 @@ export default function ErrorView({ info, onRetry, onBack }) {
                     {info?.message || "Something went wrong. Please try again."}
                 </h2>
                 <p className="mt-2 text-sm text-muted">
-                    Your recording and files are kept on this device.{" "}
+                    Your recording and files are kept on this device.
                     {transcript
                         ? "Try again reuses the transcript."
                         : "Try again sends your recording again."}

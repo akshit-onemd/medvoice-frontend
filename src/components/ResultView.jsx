@@ -1,11 +1,21 @@
-import React, { useEffect, useState } from "react";
-import { ArrowLeft, ChevronDown, Download, Pencil } from "lucide-react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
+import {
+    ArrowLeft,
+    ChevronDown,
+    Download,
+    IndianRupee,
+    Pencil,
+} from "lucide-react";
 import { VitalsCard, AllergiesCard } from "./sections/VitalsAndAllergies";
 import { Receipt } from "lucide-react"; // add to existing lucide import
 import SuggestedPlanCard from "./SuggestedPlanCard";
 import VoiceFillButton from "./VoiceFillButton";
 import VoiceReviewDialog from "./VoiceReviewDialog";
 import BillDialog from "./BillDialog";
+import CodeReviewPanel from "./CodeReviewPanel";
+import CodePickerDialog from "./CodePickerDialog";
+import { collectCodeItems, vocabOfSystem } from "../utils/codeItems";
+
 import {
     ConditionsCard,
     ProceduresCard,
@@ -26,11 +36,13 @@ import {
     AIOverviewCard,
     SummaryCard,
     CardActionContext,
+    CodeReviewContext,
 } from "./sections/shared";
 import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
 import BrandMark from "./BrandMark";
 import PrescriptionEditor from "./PrescriptionEditor";
 import HistorySectionEditor from "./HistorySectionEditor";
+import { refreshSummary, saveCodes } from "../api/processAudio";
 const DEFAULT_VITALS = [
     {
         name: "Systolic Blood Pressure",
@@ -76,12 +88,32 @@ export default function ResultView({ result, onReset }) {
         setBillOpen(false);
         setVoiceResult(null);
     }, [result]);
+    const [picker, setPicker] = useState(null);
+    const codeItems = useMemo(() => collectCodeItems(doc), [doc]);
+    const codeIndex = useMemo(() => {
+        const m = new Map();
+        codeItems.forEach(
+            (i) =>
+                i.code &&
+                !m.has(`${i.vocab}|${i.code}`) &&
+                m.set(`${i.vocab}|${i.code}`, i),
+        );
+        return m;
+    }, [codeItems]);
+    const consultationId = result?.saved?.consultation_id;
+    const canEdit = !!consultationId; // Applied after any section/prescription save — merges the edited section
 
+    const codeCtx = useMemo(
+        () => ({
+            lookup: (system, code) =>
+                codeIndex.get(`${vocabOfSystem(system)}|${code}`) || null,
+            open: canEdit ? setPicker : null,
+        }),
+        [codeIndex, canEdit],
+    );
     const [showTranscript, setShowTranscript] = useState(false);
     const data = doc;
     const rx = data.prescription || null;
-    const consultationId = result?.saved?.consultation_id;
-    const canEdit = !!consultationId; // Applied after any section/prescription save — merges the edited section
     // and the freshly regenerated consultation_summary into local state.
     const saveSection = (key) => (body) => {
         setDoc((d) => ({
@@ -93,13 +125,9 @@ export default function ResultView({ result, onReset }) {
         setEditingSection(null);
     };
     const applyVoiceBody = (body) => {
-        setDoc((d) => ({
-            ...d,
-            ...(body.patch || {}),
-            consultation_summary:
-                body.consultation_summary ?? d.consultation_summary,
-        }));
+        setDoc((d) => ({ ...d, ...(body.patch || {}) }));
         setEditingSection(null);
+        refreshOverview();
     };
     const applySuggestion = (body) =>
         setDoc((d) => ({
@@ -109,7 +137,26 @@ export default function ResultView({ result, onReset }) {
             consultation_summary:
                 body.consultation_summary ?? d.consultation_summary,
         }));
+    const [summaryBusy, setSummaryBusy] = useState(false);
+    const refreshTicket = useRef(0);
 
+    const refreshOverview = () => {
+        const ticket = ++refreshTicket.current;
+        setSummaryBusy(true);
+        refreshSummary(consultationId)
+            .then((b) => {
+                if (ticket !== refreshTicket.current) return; // a newer refresh is running
+                setDoc((d) => ({
+                    ...d,
+                    consultation_summary:
+                        b.consultation_summary ?? d.consultation_summary,
+                }));
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (ticket === refreshTicket.current) setSummaryBusy(false);
+            });
+    };
     // vitals is always a fixed-length array of { name, units, value, loinc_code };
     // unrecorded vitals come back with value: "", so filter those out before
     // deciding whether the section has anything to show.
@@ -207,56 +254,61 @@ export default function ResultView({ result, onReset }) {
     const emptySections = sections.filter((s) => isEmptyValue(s.value));
 
     return (
-        // <div className="w-full max-w-5xl mx-auto">
-        <div className="w-full max-w-2xl mx-auto">
-            <TopBar
-                onReset={onReset}
-                language={result?.language}
-                onDownload={() =>
-                    downloadConsultationPdf({ ...result, structured_data: doc })
-                }
-                onBill={canEdit ? () => setBillOpen(true) : undefined}
-            />
-            {canEdit && (
-                <div className="mb-5">
-                    <VoiceFillButton
-                        section="all"
-                        onResult={setVoiceResult}
-                        disabled={!!editingSection}
-                    />
-                    {editingSection && (
-                        <p className="mt-2 text-xs text-muted">
-                            Finish or cancel the open editor to use voice.
-                        </p>
-                    )}
-                </div>
-            )}
-            {hadFailure && (
-                <div className="mb-5 rounded-md border border-line bg-surface px-5 py-4 text-sm text-muted shadow-panel">
-                    A summary could not be built for this consultation. You can
-                    fill the sections by hand, or record the consultation again.
-                    The transcript is at the bottom of the page.
-                </div>
-            )}
-            {(data.consultation_summary?.overview ||
-                data.consultation_summary?.details?.length > 0) && (
-                <div className="mb-5">
-                    <AIOverviewCard
-                        overview={data.consultation_summary?.overview}
-                        details={data.consultation_summary?.details}
-                    />
-                </div>
-            )}
-            <SuggestedPlanCard
-                consultationId={consultationId}
-                plan={data.suggested_plan}
-                allergies={data.allergies}
-                rx={rx}
-                canEdit={canEdit}
-                hasTranscript={!!result?.transcript}
-                onChange={applySuggestion}
-            />
-            {/* {!isEmptyValue(data.consultation_summary) && (
+        <CodeReviewContext.Provider value={codeCtx}>
+            <div className="w-full max-w-2xl mx-auto">
+                <TopBar
+                    onReset={onReset}
+                    language={result?.language}
+                    onDownload={() =>
+                        downloadConsultationPdf({
+                            ...result,
+                            structured_data: doc,
+                        })
+                    }
+                    onBill={canEdit ? () => setBillOpen(true) : undefined}
+                />
+                {canEdit && (
+                    <div className="mb-5">
+                        <VoiceFillButton
+                            section="all"
+                            onResult={setVoiceResult}
+                            disabled={!!editingSection}
+                        />
+                        {editingSection && (
+                            <p className="mt-2 text-xs text-muted">
+                                Finish or cancel the open editor to use voice.
+                            </p>
+                        )}
+                    </div>
+                )}
+                {hadFailure && (
+                    <div className="mb-5 rounded-md border border-line bg-surface px-5 py-4 text-sm text-muted shadow-panel">
+                        A summary could not be built for this consultation. You
+                        can fill the sections by hand, or record the
+                        consultation again. The transcript is at the bottom of
+                        the page.
+                    </div>
+                )}
+                {(data.consultation_summary?.overview ||
+                    data.consultation_summary?.details?.length > 0) && (
+                    <div className="mb-5">
+                        <AIOverviewCard
+                            overview={data.consultation_summary?.overview}
+                            details={data.consultation_summary?.details}
+                            updating={summaryBusy}
+                        />
+                    </div>
+                )}
+                <SuggestedPlanCard
+                    consultationId={consultationId}
+                    plan={data.suggested_plan}
+                    allergies={data.allergies}
+                    rx={rx}
+                    canEdit={canEdit}
+                    hasTranscript={!!result?.transcript}
+                    onChange={applySuggestion}
+                />
+                {/* {!isEmptyValue(data.consultation_summary) && (
                 <div className="mb-5">
                     <AIOverviewCard
                         overview={data.consultation_summary.overview}
@@ -264,131 +316,138 @@ export default function ResultView({ result, onReset }) {
                     />
                 </div>
             )} */}
-            {/* <div className="columns-1 lg:columns-2 gap-5"> */}
-            {editingSection === "prescription" ? (
-                <div className="mb-5">
-                    <PrescriptionEditor
-                        consultationId={consultationId}
-                        prescription={rx}
-                        onSaved={saveSection("prescription")}
-                        onCancel={() => setEditingSection(null)}
-                    />
-                </div>
-            ) : (
-                (rx || canEdit) && (
+                {/* <div className="columns-1 lg:columns-2 gap-5"> */}
+                {editingSection === "prescription" ? (
                     <div className="mb-5">
-                        {canEdit && !rx && (
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setEditingSection("prescription")
-                                }
-                                className="inline-flex items-center gap-1.5 rounded border border-line bg-surface px-3 py-1.5 text-xs text-ink hover:bg-paper transition-colors"
-                            >
-                                <Pencil size={12} strokeWidth={1.75} />
-                                Add prescription & plan
-                            </button>
-                        )}
-                        {rx && (
-                            <CardActionContext.Provider
-                                value={
-                                    canEdit
-                                        ? {
-                                              onEdit: () =>
-                                                  setEditingSection(
-                                                      "prescription",
-                                                  ),
-                                              label: "prescription and plan",
-                                          }
-                                        : null
-                                }
-                            >
-                                <PrescriptionCard prescription={rx} />
-                            </CardActionContext.Provider>
-                        )}
-                    </div>
-                )
-            )}
-            <div className="columns-1 gap-5">
-                {filledSections.map((s) => (
-                    <div key={s.key} className="break-inside-avoid mb-5">
-                        {editingSection === s.key ? (
-                            <HistorySectionEditor
-                                sectionKey={s.key}
-                                consultationId={consultationId}
-                                data={
-                                    s.key === "vitals"
-                                        ? data.vitals
-                                        : data[s.key]
-                                }
-                                onSaved={saveSection(s.key)}
-                                onCancel={() => setEditingSection(null)}
-                            />
-                        ) : (
-                            <CardActionContext.Provider
-                                value={
-                                    canEdit
-                                        ? {
-                                              onEdit: () =>
-                                                  setEditingSection(s.key),
-                                              label: s.label,
-                                          }
-                                        : null
-                                }
-                            >
-                                {s.render()}
-                            </CardActionContext.Provider>
-                        )}
-                    </div>
-                ))}
-            </div>
-            {editingSection &&
-                emptySections.some((s) => s.key === editingSection) && (
-                    <div className="mt-5">
-                        <HistorySectionEditor
-                            sectionKey={editingSection}
+                        <PrescriptionEditor
                             consultationId={consultationId}
-                            data={
-                                editingSection === "vitals"
-                                    ? data.vitals?.length
-                                        ? data.vitals
-                                        : DEFAULT_VITALS
-                                    : data[editingSection] || []
-                            }
-                            onSaved={saveSection(editingSection)}
+                            prescription={rx}
+                            onSaved={saveSection("prescription")}
                             onCancel={() => setEditingSection(null)}
                         />
                     </div>
-                )}
-            {emptySections.length > 0 && (
-                <div className="mt-5 bg-surface border border-line rounded-md px-5 py-4">
-                    <p className="font-serif text-base text-ink leading-tight mb-4">
-                        Not recorded
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                        {emptySections.map((s) =>
-                            canEdit ? (
+                ) : (
+                    (rx || canEdit) && (
+                        <div className="mb-5">
+                            {canEdit && !rx && (
                                 <button
-                                    key={s.key}
                                     type="button"
-                                    onClick={() => setEditingSection(s.key)}
-                                    className="inline-flex items-center rounded-full border border-line bg-paper px-2.5 py-1 text-sm hover:bg-clinical-50 hover:text-ink transition-colors"
+                                    onClick={() =>
+                                        setEditingSection("prescription")
+                                    }
+                                    className="inline-flex items-center gap-1.5 rounded border border-line bg-surface px-3 py-1.5 text-xs text-ink hover:bg-paper transition-colors"
                                 >
-                                    + {s.label}
+                                    <Pencil size={12} strokeWidth={1.75} />
+                                    Add prescription & plan
                                 </button>
-                            ) : (
-                                <span
-                                    key={s.key}
-                                    className="inline-flex items-center rounded-full border border-line bg-paper px-2.5 py-1 text-sm"
+                            )}
+                            {rx && (
+                                <CardActionContext.Provider
+                                    value={
+                                        canEdit
+                                            ? {
+                                                  onEdit: () =>
+                                                      setEditingSection(
+                                                          "prescription",
+                                                      ),
+                                                  label: "prescription and plan",
+                                              }
+                                            : null
+                                    }
                                 >
-                                    {s.label}
-                                </span>
-                            ),
-                        )}
-                    </div>
+                                    <PrescriptionCard prescription={rx} />
+                                </CardActionContext.Provider>
+                            )}
+                        </div>
+                    )
+                )}
+                <CodeReviewPanel
+                    items={codeItems}
+                    canEdit={canEdit}
+                    consultationId={consultationId}
+                    onChanged={setDoc}
+                    onPick={setPicker}
+                />
+                <div className="columns-1 gap-5">
+                    {filledSections.map((s) => (
+                        <div key={s.key} className="break-inside-avoid mb-5">
+                            {editingSection === s.key ? (
+                                <HistorySectionEditor
+                                    sectionKey={s.key}
+                                    consultationId={consultationId}
+                                    data={
+                                        s.key === "vitals"
+                                            ? data.vitals
+                                            : data[s.key]
+                                    }
+                                    onSaved={saveSection(s.key)}
+                                    onCancel={() => setEditingSection(null)}
+                                />
+                            ) : (
+                                <CardActionContext.Provider
+                                    value={
+                                        canEdit
+                                            ? {
+                                                  onEdit: () =>
+                                                      setEditingSection(s.key),
+                                                  label: s.label,
+                                              }
+                                            : null
+                                    }
+                                >
+                                    {s.render()}
+                                </CardActionContext.Provider>
+                            )}
+                        </div>
+                    ))}
                 </div>
-            )}
-            {/* {editingSection === "prescription" ? (
+                {editingSection &&
+                    emptySections.some((s) => s.key === editingSection) && (
+                        <div className="mt-5">
+                            <HistorySectionEditor
+                                sectionKey={editingSection}
+                                consultationId={consultationId}
+                                data={
+                                    editingSection === "vitals"
+                                        ? data.vitals?.length
+                                            ? data.vitals
+                                            : DEFAULT_VITALS
+                                        : data[editingSection] || []
+                                }
+                                onSaved={saveSection(editingSection)}
+                                onCancel={() => setEditingSection(null)}
+                            />
+                        </div>
+                    )}
+                {emptySections.length > 0 && (
+                    <div className="mt-5 bg-surface border border-line rounded-md px-5 py-4">
+                        <p className="font-serif text-base text-ink leading-tight mb-4">
+                            Not recorded
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {emptySections.map((s) =>
+                                canEdit ? (
+                                    <button
+                                        key={s.key}
+                                        type="button"
+                                        onClick={() => setEditingSection(s.key)}
+                                        className="inline-flex items-center rounded-full border border-line bg-paper px-2.5 py-1 text-sm hover:bg-clinical-50 hover:text-ink transition-colors"
+                                    >
+                                        + {s.label}
+                                    </button>
+                                ) : (
+                                    <span
+                                        key={s.key}
+                                        className="inline-flex items-center rounded-full border border-line bg-paper px-2.5 py-1 text-sm"
+                                    >
+                                        {s.label}
+                                    </span>
+                                ),
+                            )}
+                        </div>
+                    </div>
+                )}
+                {/* {editingSection === "prescription" ? (
                 <div className="mt-5">
                     <PrescriptionEditor
                         consultationId={consultationId}
@@ -426,78 +485,91 @@ export default function ResultView({ result, onReset }) {
                     )}
                 </div>
             )} */}
-            {/* {result?.saved && (
+                {/* {result?.saved && (
                 <p className="text-xs text-muted mt-1">
                     Saved to {result.saved.patient_name}'s record
                 </p>
             )} */}
-            {result?.transcript && (
-                <div className="mt-5 bg-surface border border-line rounded-md shadow-panel">
-                    <button
-                        type="button"
-                        onClick={() => setShowTranscript((v) => !v)}
-                        className="w-full flex items-center justify-between px-6 py-4 text-left"
-                    >
-                        <span className="font-serif text-base text-ink">
-                            Full transcript
-                        </span>
-                        <ChevronDown
-                            size={16}
-                            className={`text-muted transition-transform ${showTranscript ? "rotate-180" : ""}`}
-                        />
-                    </button>
-                    {showTranscript && (
-                        <div className="px-6 pb-6 space-y-2">
-                            {result.diarizedTranscript ? (
-                                result.diarizedTranscript
-                                    .split("\n")
-                                    .map((line, i) => {
-                                        const match =
-                                            line.match(/^([^:]+):\s*(.*)$/);
-                                        return (
-                                            <p
-                                                key={i}
-                                                className="text-sm text-ink/80 leading-relaxed"
-                                            >
-                                                {match ? (
-                                                    <>
-                                                        <span className="font-medium text-ink">
-                                                            {match[1]}:
-                                                        </span>
-                                                        {match[2]}
-                                                    </>
-                                                ) : (
-                                                    line
-                                                )}
-                                            </p>
-                                        );
-                                    })
-                            ) : (
-                                <p className="text-sm text-ink/80 leading-relaxed whitespace-pre-wrap">
-                                    {result.transcript}
-                                </p>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
-            {billOpen && (
-                <BillDialog
-                    consultationId={consultationId}
-                    onClose={() => setBillOpen(false)}
-                />
-            )}
-            {voiceResult && (
-                <VoiceReviewDialog
-                    consultationId={consultationId}
-                    result={voiceResult}
-                    doc={doc}
-                    editorOpen={!!editingSection}
-                    onApplied={applyVoiceBody}
-                    onClose={() => setVoiceResult(null)}
-                />
-            )}
-        </div>
+                {result?.transcript && (
+                    <div className="mt-5 bg-surface border border-line rounded-md shadow-panel">
+                        <button
+                            type="button"
+                            onClick={() => setShowTranscript((v) => !v)}
+                            className="w-full flex items-center justify-between px-6 py-4 text-left"
+                        >
+                            <span className="font-serif text-base text-ink">
+                                Full transcript
+                            </span>
+                            <ChevronDown
+                                size={16}
+                                className={`text-muted transition-transform ${showTranscript ? "rotate-180" : ""}`}
+                            />
+                        </button>
+                        {showTranscript && (
+                            <div className="px-6 pb-6 space-y-2">
+                                {result.diarizedTranscript ? (
+                                    result.diarizedTranscript
+                                        .split("\n")
+                                        .map((line, i) => {
+                                            const match =
+                                                line.match(/^([^:]+):\s*(.*)$/);
+                                            return (
+                                                <p
+                                                    key={i}
+                                                    className="text-sm text-ink/80 leading-relaxed"
+                                                >
+                                                    {match ? (
+                                                        <>
+                                                            <span className="font-medium text-ink">
+                                                                {match[1]}:
+                                                            </span>
+                                                            {match[2]}
+                                                        </>
+                                                    ) : (
+                                                        line
+                                                    )}
+                                                </p>
+                                            );
+                                        })
+                                ) : (
+                                    <p className="text-sm text-ink/80 leading-relaxed whitespace-pre-wrap">
+                                        {result.transcript}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {billOpen && (
+                    <BillDialog
+                        consultationId={consultationId}
+                        onClose={() => setBillOpen(false)}
+                    />
+                )}
+                {voiceResult && (
+                    <VoiceReviewDialog
+                        consultationId={consultationId}
+                        result={voiceResult}
+                        doc={doc}
+                        editorOpen={!!editingSection}
+                        onApplied={applyVoiceBody}
+                        onClose={() => setVoiceResult(null)}
+                    />
+                )}
+                {picker && (
+                    <CodePickerDialog
+                        item={picker}
+                        onClose={() => setPicker(null)}
+                        onPick={async (code) => {
+                            const body = await saveCodes(consultationId, [
+                                { path: picker.path, code },
+                            ]);
+                            setDoc(body.structured_data);
+                        }}
+                    />
+                )}
+            </div>
+        </CodeReviewContext.Provider>
     );
 }
 
@@ -546,7 +618,7 @@ function TopBar({ onReset, language, onDownload, onBill }) {
                         onClick={onBill}
                         className="inline-flex items-center gap-2 rounded border border-clinical-500 bg-clinical-50 px-2.5 py-2.5 text-sm text-clinical-600 hover:bg-clinical-500 hover:text-paper transition-colors"
                     >
-                        <Receipt size={16} strokeWidth={1.75} />
+                        <IndianRupee size={16} strokeWidth={1.75} />
                         <span className="hidden sm:inline">Create Bill</span>
                     </button>
                 )}

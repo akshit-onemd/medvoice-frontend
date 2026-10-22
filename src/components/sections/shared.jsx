@@ -5,6 +5,7 @@ import {
     HelpCircle,
     RefreshCw,
     Pencil,
+    Loader2,
 } from "lucide-react";
 
 // Lets ResultView hand an edit action to whichever card renders inside it
@@ -93,9 +94,20 @@ export function Chip({ children }) {
         </span>
     );
 }
+export const CodeReviewContext = createContext(null);
+
 export function CodeTag({ system, code, term, verified, corrected }) {
+    const ctx = useContext(CodeReviewContext);
     if (!code) return null;
-    const icon = corrected ? (
+    const info = ctx?.lookup(system, code);
+    const review = info?.status === "review";
+    const sure = info?.status === "verified" || info?.status === "confirmed";
+
+    const icon = review ? (
+        <AlertTriangle size={10} strokeWidth={2.5} className="text-amber-700" />
+    ) : sure ? (
+        <Check size={10} strokeWidth={2.5} className="text-clinical-600" />
+    ) : corrected ? (
         <RefreshCw size={10} strokeWidth={2.5} className="text-amber-400" />
     ) : verified === true ? (
         <Check size={10} strokeWidth={2.5} className="text-clinical-600" />
@@ -104,20 +116,36 @@ export function CodeTag({ system, code, term, verified, corrected }) {
     ) : (
         <HelpCircle size={10} strokeWidth={2.5} className="text-muted" />
     );
-    const title = corrected
-        ? `Model's original code was wrong — auto-corrected via UMLS${term ? ": " + term : ""}`
-        : verified === true
-          ? `Verified in UMLS${term ? ": " + term : ""}`
-          : verified === false
-            ? "Not found in UMLS — could not auto-correct"
+    const title = review
+        ? "Best match, not exact. Tap to confirm or change."
+        : sure
+          ? `${info.status === "confirmed" ? "Confirmed" : "Exact match"}${term ? ": " + term : ""}`
+          : verified === true
+            ? `Verified in UMLS${term ? ": " + term : ""}`
             : "Not yet verified";
-    return (
-        <span
-            className="inline-flex items-center gap-1 rounded border border-line bg-surface px-1.5 py-0.5 text-xs font-mono text-muted mr-1.5 mb-1.5 align-middle"
-            title={title}
-        >
+    const cls = `inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs font-mono mr-1.5 mb-1.5 align-middle ${
+        review
+            ? "border-amber-400 bg-amber-50 text-amber-700"
+            : "border-line bg-surface text-muted"
+    }`;
+    const body = (
+        <>
             {icon}
             {system} · {code}
+        </>
+    );
+    return review && ctx?.open ? (
+        <button
+            type="button"
+            onClick={() => ctx.open(info)}
+            title={title}
+            className={cls}
+        >
+            {body}
+        </button>
+    ) : (
+        <span className={cls} title={title}>
+            {body}
         </span>
     );
 }
@@ -161,7 +189,7 @@ export function SummaryCard({ title, summary }) {
 import { useState } from "react";
 import { Sparkles, ChevronDown } from "lucide-react";
 
-export function AIOverviewCard({ overview, details }) {
+export function AIOverviewCard({ overview, details, updating = false }) {
     const [expanded, setExpanded] = useState(false);
     const hasDetails = details?.length > 0;
 
@@ -193,8 +221,13 @@ export function AIOverviewCard({ overview, details }) {
                 <span className="text-xs font-medium uppercase tracking-wide text-clinical-600">
                     AI Overview
                 </span>
+                {updating && (
+                    <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted">
+                        <Loader2 size={11} className="animate-spin" />
+                        Updating…
+                    </span>
+                )}
             </div>
-
             {overview && (
                 <p className="text-sm text-ink leading-relaxed mb-3">
                     {overview}

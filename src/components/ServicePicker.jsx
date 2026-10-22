@@ -434,7 +434,7 @@ export default function ServicePicker({
                         ref={listRef}
                         className="mt-3 divide-y divide-line overflow-hidden rounded border border-line"
                     >
-                        {" "}
+                        
                         {rows.map((r) => {
                             const { v, kind } = r;
                             const key = keyOf(v);
@@ -479,7 +479,7 @@ export default function ServicePicker({
                                                             .join(", ")}
                                                     </p>
                                                     <p className="text-xs text-muted">
-                                                        {money(a.base / v.qty)}×{" "}
+                                                        {money(a.base / v.qty)}×
                                                         {v.qty} · tax per
                                                         service
                                                     </p>

@@ -338,3 +338,12 @@ export async function parseVoice(blob, section) {
 }
 export const applyVoiceRows = (id, rows) =>
     rcFetch("POST", `/consultations/${id}/voice/apply`, { rows });
+export const refreshSummary = (id) =>
+    rcFetch("POST", `/consultations/${id}/summary/refresh`, {});
+export const searchCodes = (vocab, q) =>
+    rcFetch(
+        "GET",
+        `/codes/search?vocab=${encodeURIComponent(vocab)}&q=${encodeURIComponent(q)}`,
+    );
+export const saveCodes = (consultationId, changes) =>
+    rcFetch("PUT", `/consultations/${consultationId}/code`, { changes });

@@ -220,7 +220,6 @@ export default function PrescriptionEditor({
                         <Field label="Dosage">
                             <input
                                 className={inputCls}
-                                placeholder="1 - 0 - 1"
                                 value={s(e.dosage)}
                                 onChange={(ev) =>
                                     update("medications", i, {
@@ -228,7 +227,7 @@ export default function PrescriptionEditor({
                                     })
                                 }
                             />
-                        </Field>
+                        </Field>{" "}
                         <Field label="Duration">
                             <input
                                 className={inputCls}
@@ -302,7 +301,6 @@ export default function PrescriptionEditor({
                         voice={e._voice}
                         onRemove={() => remove("followup", i)}
                     >
-                        {" "}
                         <Field label="Next visit in">
                             <input
                                 className={inputCls}

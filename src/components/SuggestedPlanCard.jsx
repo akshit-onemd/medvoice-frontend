@@ -295,7 +295,7 @@ export default function SuggestedPlanCard({
                                                         )}
                                                         {warn && (
                                                             <p className="mt-0.5 text-xs font-medium text-alert-500">
-                                                                Check allergy:{" "}
+                                                                Check allergy:
                                                                 {warn}
                                                             </p>
                                                         )}

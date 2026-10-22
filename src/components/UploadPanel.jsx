@@ -693,7 +693,7 @@ export default function UploadPanel({
                             </span>
                         )}
                     </div>
-                )}{" "}
+                )}
                 {!file && (
                     <div className="flex items-stretch gap-3">
                         {!isRecording ? (
