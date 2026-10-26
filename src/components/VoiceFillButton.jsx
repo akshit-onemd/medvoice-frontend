@@ -9,6 +9,7 @@ const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 export default function VoiceFillButton({
     section,
+    consultationId = "",
     onResult,
     disabled = false,
 }) {
@@ -20,7 +21,7 @@ export default function VoiceFillButton({
             setBusy(true);
             setError("");
             try {
-                onResult(await parseVoice(blob, section));
+                onResult(await parseVoice(blob, section, consultationId));
             } catch (err) {
                 setError(
                     err.message ||

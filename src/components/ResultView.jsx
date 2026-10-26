@@ -43,6 +43,7 @@ import BrandMark from "./BrandMark";
 import PrescriptionEditor from "./PrescriptionEditor";
 import HistorySectionEditor from "./HistorySectionEditor";
 import { refreshSummary, saveCodes } from "../api/processAudio";
+import { withBrandNames } from "../utils/brandDisplay";
 const DEFAULT_VITALS = [
     {
         name: "Systolic Blood Pressure",
@@ -271,9 +272,10 @@ export default function ResultView({ result, onReset }) {
                     <div className="mb-5">
                         <VoiceFillButton
                             section="all"
+                            consultationId={consultationId}
                             onResult={setVoiceResult}
                             disabled={!!editingSection}
-                        />
+                        />{" "}
                         {editingSection && (
                             <p className="mt-2 text-xs text-muted">
                                 Finish or cancel the open editor to use voice.
@@ -355,7 +357,9 @@ export default function ResultView({ result, onReset }) {
                                             : null
                                     }
                                 >
-                                    <PrescriptionCard prescription={rx} />
+                                    <PrescriptionCard
+                                        prescription={withBrandNames(rx)}
+                                    />
                                 </CardActionContext.Provider>
                             )}
                         </div>

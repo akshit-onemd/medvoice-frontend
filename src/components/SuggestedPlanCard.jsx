@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Sparkles, ChevronDown } from "lucide-react";
+import BrandRow from "./BrandRow";
 import {
     approveSuggestion,
     setSuggestionStatus,
     generateSuggestionFor,
+    lookupBrands,
+    setBrandFavourite,
 } from "../api/processAudio";
 import { allergyHit } from "../utils/allergyCheck";
 
@@ -80,6 +83,48 @@ export default function SuggestedPlanCard({
             setError(err.message || "Something went wrong. Please try again.");
         } finally {
             setBusy("");
+        }
+    };
+    const [brandInfo, setBrandInfo] = useState({});
+    const [brandPick, setBrandPick] = useState({});
+
+    useEffect(() => {
+        if (!open || plan?.status !== "pending") return;
+        const meds = (plan.items || []).filter((i) => i.kind === "medication");
+        if (!meds.length) return;
+        let cancelled = false;
+        lookupBrands(
+            meds.map((m) => ({ id: m.id, name: m.name, dosage: m.dosage })),
+        )
+            .then((d) => {
+                if (!cancelled)
+                    setBrandInfo(
+                        Object.fromEntries(
+                            (d.results || []).map((r) => [r.id, r]),
+                        ),
+                    );
+            })
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, planKey]);
+
+    const star = async (item, b) => {
+        const info = brandInfo[item.id];
+        if (!info?.ingKey) return;
+        try {
+            await setBrandFavourite(info.ingKey, b.family, !b.favourite);
+            const d = await lookupBrands([
+                { id: item.id, name: item.name, dosage: item.dosage },
+            ]);
+            setBrandInfo((s) => ({
+                ...s,
+                [item.id]: d.results?.[0] || s[item.id],
+            }));
+        } catch {
+            /* the star is a convenience. Ignore a failure. */
         }
     };
 
@@ -166,10 +211,16 @@ export default function SuggestedPlanCard({
         ) {
             return;
         }
+        const picked = Object.fromEntries(
+            chosen
+                .filter((i) => brandPick[i.id])
+                .map((i) => [i.id, brandPick[i.id]]),
+        );
         run("approve", () =>
             approveSuggestion(
                 consultationId,
                 chosen.map((i) => i.id),
+                picked,
             ),
         );
     };
@@ -301,6 +352,29 @@ export default function SuggestedPlanCard({
                                                         )}
                                                     </div>
                                                 </label>
+                                                {it.kind === "medication" && (
+                                                    <BrandRow
+                                                        info={brandInfo[it.id]}
+                                                        selected={
+                                                            brandPick[it.id] ||
+                                                            ""
+                                                        }
+                                                        disabled={
+                                                            !!busy || already
+                                                        }
+                                                        onSelect={(n) =>
+                                                            setBrandPick(
+                                                                (s) => ({
+                                                                    ...s,
+                                                                    [it.id]: n,
+                                                                }),
+                                                            )
+                                                        }
+                                                        onStar={(b) =>
+                                                            star(it, b)
+                                                        }
+                                                    />
+                                                )}
                                             </li>
                                         );
                                     })}

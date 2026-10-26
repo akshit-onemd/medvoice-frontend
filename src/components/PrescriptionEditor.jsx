@@ -250,6 +250,17 @@ export default function PrescriptionEditor({
                                 }
                             />
                         </Field>
+                        <Field label="Brand (optional)">
+                            <input
+                                className={inputCls}
+                                value={s(e.brand)}
+                                onChange={(ev) =>
+                                    update("medications", i, {
+                                        brand: ev.target.value,
+                                    })
+                                }
+                            />
+                        </Field>
                     </Row>
                 ))}
             </Group>

@@ -126,19 +126,15 @@ export default function VoiceReviewDialog({
     const [showAll, setShowAll] = useState(false);
     const panelRef = useRef(null);
 
+    // New rows
     const items = useMemo(() => {
         const out = [];
         for (const m of META) {
             const existing = arr(getPath(doc, m.path));
             arr(getPath(result.rows, m.path)).forEach((row, i) => {
                 let tag = "";
-                if (m.path === "vitals") {
-                    const cur = existing.find((e) => e?.name === row.name);
-                    if (cur && String(cur.value || "").trim())
-                        tag = `Replaces ${cur.value}`;
-                } else if (existing.some((e) => same(m.key(e), m.key(row)))) {
+                if (existing.some((e) => same(m.key(e), m.key(row))))
                     tag = "Already in record";
-                }
                 out.push({ id: `${m.path}:${i}`, m, row, tag });
             });
         }
@@ -146,10 +142,17 @@ export default function VoiceReviewDialog({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [result]);
 
+    // Changes to values already in the record
+    const edits = result.edits || [];
+
     const [selected, setSelected] = useState(
         () => new Set(items.filter((i) => !i.tag).map((i) => i.id)),
     );
+    const [editSel, setEditSel] = useState(
+        () => new Set(edits.map((_, i) => i)),
+    );
     const chosen = items.filter((i) => selected.has(i.id));
+    const total = chosen.length + editSel.size;
 
     useEffect(() => {
         const prev = document.body.style.overflow;
@@ -175,20 +178,35 @@ export default function VoiceReviewDialog({
             else n.add(id);
             return n;
         });
+    const toggleEdit = (i) =>
+        setEditSel((s) => {
+            const n = new Set(s);
+            if (n.has(i)) n.delete(i);
+            else n.add(i);
+            return n;
+        });
 
     const apply = async () => {
         const payload = EMPTY();
         items.forEach(
             (it) => selected.has(it.id) && pushPath(payload, it.m.path, it.row),
         );
+        const sent = edits
+            .filter((_, i) => editSel.has(i))
+            .map((e) => ({
+                id: e.id,
+                field: e.field,
+                value: e.value,
+                old: e.old,
+            }));
         setBusy(true);
         setError("");
         try {
-            onApplied(await applyVoiceRows(consultationId, payload));
+            onApplied(await applyVoiceRows(consultationId, payload, sent));
             onClose();
         } catch (err) {
             setError(
-                err.message || "Couldn't add to the record. Please try again.",
+                err.message || "Couldn't update the record. Please try again.",
             );
             setBusy(false);
         }
@@ -196,6 +214,7 @@ export default function VoiceReviewDialog({
 
     const heard = result.heard || "";
     const longHeard = heard.length > 140;
+    const nothing = items.length === 0 && edits.length === 0;
 
     return (
         <div
@@ -222,7 +241,7 @@ export default function VoiceReviewDialog({
                             Review what was heard
                         </h2>
                         <p className="text-xs text-muted">
-                            Only ticked rows are added. Edit them afterwards
+                            Only ticked rows are applied. Edit them afterwards
                             with the pencil.
                         </p>
                     </div>
@@ -265,62 +284,122 @@ export default function VoiceReviewDialog({
                         )}
                     </div>
 
-                    {items.length === 0 ? (
+                    {nothing ? (
                         <p className="py-6 text-center text-sm text-muted">
-                            Nothing to add. Try again, speaking clearly and
-                            naming each item.
+                            Nothing to add or change. Try again, speaking
+                            clearly and naming each item.
                         </p>
                     ) : (
-                        META.map((m) => {
-                            const rows = items.filter((i) => i.m === m);
-                            if (!rows.length) return null;
-                            return (
-                                <div key={m.path} className="mt-4">
+                        <>
+                            {edits.length > 0 && (
+                                <div className="mt-4">
                                     <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-                                        {m.label}
+                                        Changes to existing values
                                     </p>
                                     <ul className="mt-1.5 divide-y divide-line overflow-hidden rounded border border-line">
-                                        {rows.map((it) => {
-                                            const detail = m.detail(it.row);
-                                            return (
-                                                <li key={it.id}>
-                                                    <label className="flex cursor-pointer items-start gap-3 px-3 py-2.5 hover:bg-paper">
-                                                        <input
-                                                            type="checkbox"
-                                                            className="mt-1"
-                                                            checked={selected.has(
-                                                                it.id,
+                                        {edits.map((e, i) => (
+                                            <li key={`${e.id}|${e.field}`}>
+                                                <label className="flex cursor-pointer items-start gap-3 px-3 py-2.5 hover:bg-paper">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="mt-1"
+                                                        checked={editSel.has(i)}
+                                                        disabled={busy}
+                                                        onChange={() =>
+                                                            toggleEdit(i)
+                                                        }
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm text-ink">
+                                                            {e.title ||
+                                                                e.section}
+                                                            <span className="ml-2 rounded-full border border-line bg-paper px-1.5 py-0.5 text-[10px] text-muted">
+                                                                {e.label ===
+                                                                "Value"
+                                                                    ? e.section
+                                                                    : `${e.section} · ${e.label}`}
+                                                            </span>
+                                                        </p>
+                                                        <p className="mt-0.5 text-sm">
+                                                            {e.old ? (
+                                                                <span className="text-muted line-through">
+                                                                    {e.old}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="italic text-muted">
+                                                                    empty
+                                                                </span>
                                                             )}
-                                                            disabled={busy}
-                                                            onChange={() =>
-                                                                toggle(it.id)
-                                                            }
-                                                        />
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-sm text-ink">
-                                                                {m.title(
-                                                                    it.row,
-                                                                )}
-                                                                {it.tag && (
-                                                                    <span className="ml-2 rounded-full border border-line bg-paper px-1.5 py-0.5 text-[10px] text-muted">
-                                                                        {it.tag}
-                                                                    </span>
-                                                                )}
-                                                            </p>
-                                                            {detail && (
-                                                                <p className="text-xs text-muted">
-                                                                    {detail}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </label>
-                                                </li>
-                                            );
-                                        })}
+                                                            <span className="mx-1.5 text-muted">
+                                                                →
+                                                            </span>
+                                                            <span className="font-medium text-ink">
+                                                                {e.new}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                </label>
+                                            </li>
+                                        ))}
                                     </ul>
                                 </div>
-                            );
-                        })
+                            )}
+
+                            {META.map((m) => {
+                                const rows = items.filter((i) => i.m === m);
+                                if (!rows.length) return null;
+                                return (
+                                    <div key={m.path} className="mt-4">
+                                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                                            {m.label}
+                                        </p>
+                                        <ul className="mt-1.5 divide-y divide-line overflow-hidden rounded border border-line">
+                                            {rows.map((it) => {
+                                                const detail = m.detail(it.row);
+                                                return (
+                                                    <li key={it.id}>
+                                                        <label className="flex cursor-pointer items-start gap-3 px-3 py-2.5 hover:bg-paper">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="mt-1"
+                                                                checked={selected.has(
+                                                                    it.id,
+                                                                )}
+                                                                disabled={busy}
+                                                                onChange={() =>
+                                                                    toggle(
+                                                                        it.id,
+                                                                    )
+                                                                }
+                                                            />
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-sm text-ink">
+                                                                    {m.title(
+                                                                        it.row,
+                                                                    )}
+                                                                    {it.tag && (
+                                                                        <span className="ml-2 rounded-full border border-line bg-paper px-1.5 py-0.5 text-[10px] text-muted">
+                                                                            {
+                                                                                it.tag
+                                                                            }
+                                                                        </span>
+                                                                    )}
+                                                                </p>
+                                                                {detail && (
+                                                                    <p className="text-xs text-muted">
+                                                                        {detail}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </label>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
+                                );
+                            })}
+                        </>
                     )}
                     <div className="h-4" />
                 </div>
@@ -334,7 +413,7 @@ export default function VoiceReviewDialog({
                 >
                     {editorOpen && (
                         <p className="mb-2 text-xs text-alert-500">
-                            A section editor is open. Adding will close it and
+                            A section editor is open. Applying will close it and
                             drop its unsaved changes.
                         </p>
                     )}
@@ -345,14 +424,14 @@ export default function VoiceReviewDialog({
                         <button
                             type="button"
                             onClick={apply}
-                            disabled={!chosen.length || busy}
+                            disabled={!total || busy}
                             className="flex-1 rounded bg-clinical-500 py-2.5 text-sm font-medium text-paper hover:bg-clinical-600 disabled:opacity-40"
                         >
                             {busy
-                                ? "Adding…"
-                                : chosen.length
-                                  ? `Add ${chosen.length} to record`
-                                  : "Tick rows to add"}
+                                ? "Applying…"
+                                : total
+                                  ? `Apply ${total} to record`
+                                  : "Tick rows to apply"}
                         </button>
                         <button
                             type="button"

@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { withBrandNames } from "./brandDisplay";
 
 const MARGIN = 14;
 const FOOTER = 18;
@@ -71,7 +72,7 @@ export function generateConsultationPdf(
 ) {
     const data = result?.structured_data || {};
     const saved = result?.saved || {};
-    const rx = data.prescription || {};
+    const rx = withBrandNames(data.prescription || {});
 
     const mk = () => new jsPDF({ unit: "mm", format: "a4" });
     let doc = mk(); // reassigned temporarily while measuring sections

@@ -314,9 +314,7 @@ export const generateSuggestionFor = (id) =>
     rcFetch("POST", `/consultations/${id}/suggestion`, {});
 export const setSuggestionStatus = (id, status) =>
     rcFetch("PUT", `/consultations/${id}/suggestion`, { status });
-export const approveSuggestion = (id, ids) =>
-    rcFetch("POST", `/consultations/${id}/suggestion/approve`, { ids });
-export async function parseVoice(blob, section) {
+export async function parseVoice(blob, section, consultationId = "") {
     const fd = new FormData();
     fd.append(
         "audio",
@@ -324,6 +322,7 @@ export async function parseVoice(blob, section) {
         `voice.${(blob.type || "").includes("mp4") ? "m4a" : "webm"}`,
     );
     fd.append("section", section);
+    if (consultationId) fd.append("consultation_id", consultationId);
     const res = await authFetch(`${API_BASE_URL}/voice/parse`, {
         method: "POST",
         body: fd,
@@ -334,10 +333,11 @@ export async function parseVoice(blob, section) {
             body.error ||
                 "Couldn't understand the recording. Please try again.",
         );
-    return body; // { heard, language, rows, empty }
+    return body; // { heard, language, rows, edits, empty }
 }
-export const applyVoiceRows = (id, rows) =>
-    rcFetch("POST", `/consultations/${id}/voice/apply`, { rows });
+
+export const applyVoiceRows = (id, rows, edits = []) =>
+    rcFetch("POST", `/consultations/${id}/voice/apply`, { rows, edits });
 export const refreshSummary = (id) =>
     rcFetch("POST", `/consultations/${id}/summary/refresh`, {});
 export const searchCodes = (vocab, q) =>
@@ -347,3 +347,16 @@ export const searchCodes = (vocab, q) =>
     );
 export const saveCodes = (consultationId, changes) =>
     rcFetch("PUT", `/consultations/${consultationId}/code`, { changes });
+export const approveSuggestion = (id, ids, brands = {}) =>
+    rcFetch("POST", `/consultations/${id}/suggestion/approve`, { ids, brands });
+export const lookupBrands = (items) =>
+    rcFetch("POST", "/brands/lookup", { items });
+export const searchBrandMedicines = (q) =>
+    rcFetch("GET", `/brands/medicines?q=${encodeURIComponent(q)}`);
+export const getBrandFamilies = (ing) =>
+    rcFetch("GET", `/brands/families?ing=${encodeURIComponent(ing)}`);
+export const getBrandPrefs = () => rcFetch("GET", "/brand-prefs");
+export const saveBrandPrefs = (ing_key, families) =>
+    rcFetch("PUT", "/brand-prefs", { ing_key, families });
+export const setBrandFavourite = (ing_key, family, favourite) =>
+    rcFetch("PUT", "/brand-prefs/favourite", { ing_key, family, favourite });

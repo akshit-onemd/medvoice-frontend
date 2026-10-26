@@ -16,6 +16,7 @@ import BillLetterheadSettings from "./components/BillLetterheadSettings";
 import useBackNav from "./hooks/useBackNav";
 import { clearAllDrafts, clearHomeDrafts } from "./utils/draftStore";
 import { useAnyDirty, isAnyDirty } from "./hooks/useDirty";
+import BrandSettings from "./components/BrandSettings";
 // idle -> processing -> result | error
 // records is a parallel top-level stage, reachable from idle/result/error via the nav
 // profile is an overlay view controlled by showProfile, not a stage
@@ -295,6 +296,7 @@ export default function Dashboard({ profile, onProfileChange }) {
                     </div>
                     <div className="w-full max-w-2xl mx-auto mt-5">
                         <RateCardSettings />
+                        <BrandSettings />
                     </div>
                 </>
             ) : (
