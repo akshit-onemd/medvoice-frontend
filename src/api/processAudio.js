@@ -66,6 +66,13 @@ export async function getConsultation(consultationId) {
     if (!res.ok) throw new Error("Failed to load consultation");
     return res.json();
 }
+export async function getPatient(patientId) {
+    const res = await authFetch(`${API_BASE_URL}/patients/${patientId}`);
+    if (!res.ok) throw new Error("Failed to load patient");
+    const data = await res.json();
+    return data.patient;
+}
+
 export async function getPatientSummary(patientId) {
     const res = await authFetch(
         `${API_BASE_URL}/patients/${patientId}/summary`,
@@ -351,6 +358,8 @@ export const approveSuggestion = (id, ids, brands = {}) =>
     rcFetch("POST", `/consultations/${id}/suggestion/approve`, { ids, brands });
 export const lookupBrands = (items) =>
     rcFetch("POST", "/brands/lookup", { items });
+export const searchBrandProducts = (q) =>
+    rcFetch("GET", `/brands/products?q=${encodeURIComponent(q)}`);
 export const searchBrandMedicines = (q) =>
     rcFetch("GET", `/brands/medicines?q=${encodeURIComponent(q)}`);
 export const getBrandFamilies = (ing) =>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { UserPlus, Pencil } from "lucide-react";
+import { UserPlus, Pencil, ShieldCheck } from "lucide-react";
 import PatientList from "./components/PatientList";
 import { UserButton } from "@clerk/react";
 import SearchInput from "./components/SearchInput";
@@ -18,6 +18,8 @@ import {
     updatePatient,
 } from "./api/processAudio";
 import BrandMark from "./components/BrandMark";
+import ConsentFlow from "./components/ConsentFlow";
+import ConsentBadge from "./components/ConsentBadge";
 import { clearAllDrafts, removeItem } from "./utils/draftStore";
 
 const inputCls =
@@ -33,6 +35,7 @@ export default function StaffDashboard({ doctorName }) {
     const [initial, setInitial] = useState(null);
     const [editingId, setEditingId] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [consentPatient, setConsentPatient] = useState(null);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [query, setQuery] = useState("");
@@ -44,7 +47,7 @@ export default function StaffDashboard({ doctorName }) {
     const [taxes, setTaxes] = useState([]);
     const [svcItems, setSvcItems] = useState([]);
     const [svcLoading, setSvcLoading] = useState(false);
-const [bundles, setBundles] = useState([]);
+    const [bundles, setBundles] = useState([]);
     useEffect(() => {
         getRateCard()
             .then((d) => {
@@ -113,7 +116,7 @@ const [bundles, setBundles] = useState([]);
             .catch(() => {})
             .finally(() => setSvcLoading(false));
     };
-const draftKeyFor = (id) => `form:staff-patient-${id || "new"}`;
+    const draftKeyFor = (id) => `form:staff-patient-${id || "new"}`;
     const closeForm = () => {
         removeItem(draftKeyFor(editingId));
         setMode(null);
@@ -121,23 +124,23 @@ const draftKeyFor = (id) => `form:staff-patient-${id || "new"}`;
         setEditingId(null);
         setError("");
     };
-const dirty = useAnyDirty();
-useBackNav({
-    active: dirty || !!mode,
-    warnOnUnload: dirty,
-    onBack: () => {
-        if (isAnyDirty()) {
-            if (!window.confirm("You have unsaved changes. Discard them?"))
+    const dirty = useAnyDirty();
+    useBackNav({
+        active: dirty || !!mode,
+        warnOnUnload: dirty,
+        onBack: () => {
+            if (isAnyDirty()) {
+                if (!window.confirm("You have unsaved changes. Discard them?"))
+                    return "stay";
+                clearAllDrafts();
+            }
+            if (mode) {
+                closeForm();
                 return "stay";
-            clearAllDrafts();
-        }
-        if (mode) {
-            closeForm();
-            return "stay";
-        }
-        return "leave";
-    },
-});
+            }
+            return "leave";
+        },
+    });
     const handleSave = async (payload) => {
         setError("");
         setSaving(true);
@@ -173,6 +176,16 @@ useBackNav({
         closeForm();
         setRefresh((n) => n + 1);
         setSaving(false);
+        if (mode !== "edit") setConsentPatient(saved); // new patient: collect consent now (can be closed)
+    };
+
+    const onConsentDone = (status) => {
+        const id = consentPatient?.id;
+        setResults((rs) =>
+            rs.map((r) => (r.id === id ? { ...r, consent_status: status } : r)),
+        );
+        setConsentPatient(null);
+        setRefresh((n) => n + 1); // reload the list badges
     };
 
     const q = query.trim();
@@ -270,15 +283,26 @@ useBackNav({
                         {results.length > 0 && (
                             <ul className="mt-3 rounded border border-line divide-y divide-line overflow-hidden">
                                 {results.map((p) => (
-                                    <li key={p.id}>
+                                    <li
+                                        key={p.id}
+                                        className="flex items-center gap-2 pr-2"
+                                    >
                                         <button
                                             type="button"
                                             onClick={() => startEdit(p)}
-                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-paper"
+                                            className="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-left hover:bg-paper"
                                         >
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-sm text-ink truncate">
-                                                    {p.name}
+                                                <p className="flex items-center gap-2 text-sm text-ink">
+                                                    <span className="truncate">
+                                                        {p.name}
+                                                    </span>
+                                                    <ConsentBadge
+                                                        status={
+                                                            p.consent_status ||
+                                                            "none"
+                                                        }
+                                                    />
                                                 </p>
                                                 <p className="text-xs text-muted">
                                                     {[
@@ -295,6 +319,21 @@ useBackNav({
                                                 Edit
                                             </span>
                                         </button>
+                                        {(p.consent_status || "none") !==
+                                            "valid" && (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setConsentPatient(p)
+                                                }
+                                                className="shrink-0 inline-flex items-center gap-1 rounded bg-clinical-500 px-3 py-2 text-xs font-medium text-paper hover:bg-clinical-600"
+                                            >
+                                                <ShieldCheck size={14} />
+                                                {p.consent_status === "outdated"
+                                                    ? "Re-sign"
+                                                    : "Consent"}
+                                            </button>
+                                        )}
                                     </li>
                                 ))}
                             </ul>
@@ -323,11 +362,19 @@ useBackNav({
                                     hideSearch
                                     refreshKey={refresh}
                                     onEdit={startEdit}
+                                    onConsent={setConsentPatient}
                                 />
                             </div>
                         )}
                     </div>
                 </div>
+            )}
+            {consentPatient && (
+                <ConsentFlow
+                    patient={consentPatient}
+                    onCancel={() => setConsentPatient(null)}
+                    onDone={onConsentDone}
+                />
             )}
         </div>
     );

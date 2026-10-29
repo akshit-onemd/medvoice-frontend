@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, Download, FileClock, Loader2, Plus } from "lucide-react";
+import {
+    ArrowLeft,
+    ChevronDown,
+    Download,
+    FileClock,
+    Loader2,
+    Plus,
+    ShieldCheck,
+} from "lucide-react";
 import ResultView from "./ResultView";
 import { AIOverviewCard } from "./sections/shared";
 import {
@@ -8,6 +16,10 @@ import {
     getConsultation,
 } from "../api/processAudio";
 import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
+import useConsent from "../hooks/useConsent";
+import ConsentFlow from "./ConsentFlow";
+import ConsentBadge from "./ConsentBadge";
+import PatientDetails from "./PatientDetails";
 
 const EMPTY_SUMMARY = { overview: "", details: [] };
 
@@ -17,9 +29,12 @@ export default function PatientRecords({ patient, onBack, onNewVisit }) {
     const [patientSummary, setPatientSummary] = useState(EMPTY_SUMMARY);
     const [loadingSummary, setLoadingSummary] = useState(true);
     const [activeResult, setActiveResult] = useState(null);
-    const [loadingRecord, setLoadingRecord] = useState(false);
+    const [openingId, setOpeningId] = useState(null);
     const [downloadingId, setDownloadingId] = useState(null);
     const [error, setError] = useState("");
+    const [consent, setConsent] = useConsent(patient.id);
+    const [showConsent, setShowConsent] = useState(false);
+    const [showDetails, setShowDetails] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -50,14 +65,15 @@ export default function PatientRecords({ patient, onBack, onNewVisit }) {
     }, [activeResult]);
 
     const openConsultation = async (id) => {
-        setLoadingRecord(true);
+        if (openingId) return; // ignore clicks while one is already opening
+        setOpeningId(id);
         setError("");
         try {
             setActiveResult(await getConsultation(id));
         } catch (err) {
             setError(err.message);
         } finally {
-            setLoadingRecord(false);
+            setOpeningId(null);
         }
     };
 
@@ -97,8 +113,9 @@ export default function PatientRecords({ patient, onBack, onNewVisit }) {
                         <ArrowLeft size={16} strokeWidth={1.75} />
                     </button>
                     <div className="min-w-0 flex-1">
-                        <p className="text-base text-ink truncate">
-                            {patient.name}
+                        <p className="flex items-center gap-2 text-base text-ink">
+                            <span className="truncate">{patient.name}</span>
+                            <ConsentBadge status={consent} />
                         </p>
                         <p className="text-sm text-muted truncate">
                             {[
@@ -110,6 +127,18 @@ export default function PatientRecords({ patient, onBack, onNewVisit }) {
                                 .join(" · ")}
                         </p>
                     </div>
+                    {consent && consent !== "valid" && (
+                        <button
+                            type="button"
+                            onClick={() => setShowConsent(true)}
+                            className="shrink-0 inline-flex items-center gap-1 rounded bg-clinical-500 px-3 py-2 text-xs font-medium text-paper hover:bg-clinical-600"
+                        >
+                            <ShieldCheck size={14} />
+                            {consent === "outdated"
+                                ? "Re-sign"
+                                : "Collect consent"}
+                        </button>
+                    )}
                     {onNewVisit && (
                         <button
                             type="button"
@@ -119,6 +148,30 @@ export default function PatientRecords({ patient, onBack, onNewVisit }) {
                             <Plus size={14} strokeWidth={2} />
                             New visit
                         </button>
+                    )}
+                </div>
+
+                <div className="-mt-3 mb-6">
+                    <button
+                        type="button"
+                        onClick={() => setShowDetails((v) => !v)}
+                        aria-expanded={showDetails}
+                        className="inline-flex items-center gap-1 px-1 text-xs font-medium text-clinical-600 underline underline-offset-2"
+                    >
+                        <ChevronDown
+                            size={14}
+                            strokeWidth={1.75}
+                            className={`transition-transform ${showDetails ? "rotate-180" : ""}`}
+                        />
+                        {showDetails ? "Hide details" : "View all details"}
+                    </button>
+                    {showDetails && (
+                        <div className="mt-2 rounded border border-line bg-paper p-4">
+                            <PatientDetails
+                                patient={patient}
+                                consent={consent}
+                            />
+                        </div>
                     )}
                 </div>
 
@@ -154,14 +207,26 @@ export default function PatientRecords({ patient, onBack, onNewVisit }) {
                                 <button
                                     type="button"
                                     onClick={() => openConsultation(c.id)}
-                                    disabled={loadingRecord}
-                                    className="min-w-0 flex-1 flex items-center gap-3 rounded border border-line bg-paper px-4 py-3 text-left hover:bg-clinical-50 disabled:opacity-50"
+                                    aria-busy={openingId === c.id}
+                                    className={`min-w-0 flex-1 flex items-center gap-3 rounded border px-4 py-3 text-left ${
+                                        openingId === c.id
+                                            ? "border-clinical-500 bg-clinical-50"
+                                            : "border-line bg-paper hover:bg-clinical-50"
+                                    } ${openingId ? "cursor-wait" : ""}`}
                                 >
-                                    <FileClock
-                                        size={16}
-                                        className="text-clinical-600 shrink-0"
-                                        strokeWidth={1.75}
-                                    />
+                                    {openingId === c.id ? (
+                                        <Loader2
+                                            size={16}
+                                            className="text-clinical-600 shrink-0 animate-spin"
+                                            strokeWidth={1.75}
+                                        />
+                                    ) : (
+                                        <FileClock
+                                            size={16}
+                                            className="text-clinical-600 shrink-0"
+                                            strokeWidth={1.75}
+                                        />
+                                    )}
                                     <div className="min-w-0 flex-1">
                                         <p className="text-sm text-ink truncate">
                                             {c.summary || "Consultation"}
@@ -210,6 +275,16 @@ export default function PatientRecords({ patient, onBack, onNewVisit }) {
                     <p className="mt-4 text-sm text-alert-500">{error}</p>
                 )}
             </div>
+            {showConsent && (
+                <ConsentFlow
+                    patient={patient}
+                    onCancel={() => setShowConsent(false)}
+                    onDone={(status) => {
+                        setConsent(status);
+                        setShowConsent(false);
+                    }}
+                />
+            )}
         </div>
     );
 }

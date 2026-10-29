@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { withBrandNames } from "./brandDisplay";
+import { medLines } from "./brandDisplay";
 
 const MARGIN = 14;
 const FOOTER = 18;
@@ -72,7 +72,7 @@ export function generateConsultationPdf(
 ) {
     const data = result?.structured_data || {};
     const saved = result?.saved || {};
-    const rx = withBrandNames(data.prescription || {});
+    const rx = data.prescription || {};
 
     const mk = () => new jsPDF({ unit: "mm", format: "a4" });
     let doc = mk(); // reassigned temporarily while measuring sections
@@ -557,22 +557,83 @@ export function generateConsultationPdf(
     // ---------- Prescription: Medications → Diagnosis → Follow up ----------
     const RX = "Prescription";
 
-    const rxMeds = list(rx.medications).filter((e) => has(e, ["name"]));
+    const rxMeds = list(rx.medications).filter((e) =>
+        has(e, ["name", "brand"]),
+    );
     section(RX, "Medications", rxMeds.length > 0, () => {
+        // Fixed column widths so the brand/generic lines can be wrapped up front
+        const colDosage = 30;
+        const colDuration = 26;
+        const colInstr = 46;
+        const colMedicine =
+            pageW - MARGIN * 2 - colDosage - colDuration - colInstr;
+        const PAD = 2.4;
+        const BRAND_PT = 9.5;
+        const GENERIC_PT = 8;
+        const lineMm = (pt) => (pt * 1.2) / doc.internal.scaleFactor;
+        const wrap = (text, font, pt) => {
+            doc.setFont("helvetica", font);
+            doc.setFontSize(pt);
+            return doc.splitTextToSize(text, colMedicine - PAD * 2);
+        };
         runTable({
             ...tableStyles,
             startY: y - 2,
             head: [["Medicine", "Dosage", "Duration", "Instructions"]],
-            body: rxMeds.map((e) => [
-                or(e.name),
-                or(join(e.dosage, "; ")),
-                or(e.duration),
-                or(e.instructions),
-            ]),
+            body: rxMeds.map((e) => {
+                const { primary, secondary } = medLines(e);
+                const rest = [
+                    or(join(e.dosage, "; ")),
+                    or(e.duration),
+                    or(e.instructions),
+                ];
+                if (!secondary) return [or(primary), ...rest];
+                // Brand (bold) over generic (small): reserve the lines, draw them after
+                const top = wrap(primary, "bold", BRAND_PT);
+                const bottom = wrap(secondary, "normal", GENERIC_PT);
+                return [
+                    {
+                        content: Array(top.length + bottom.length)
+                            .fill(" ")
+                            .join("\n"),
+                        _two: { top, bottom },
+                    },
+                    ...rest,
+                ];
+            }),
             columnStyles: {
-                0: { fontStyle: "bold" },
-                1: { cellWidth: 30, halign: "center", fontStyle: "bold" },
-                2: { cellWidth: 26, halign: "center" },
+                0: { cellWidth: colMedicine, fontStyle: "bold" },
+                1: {
+                    cellWidth: colDosage,
+                    halign: "center",
+                    fontStyle: "bold",
+                },
+                2: { cellWidth: colDuration, halign: "center" },
+                3: { cellWidth: colInstr },
+            },
+            didDrawCell: (d) => {
+                const two = d.cell.raw?._two;
+                if (d.section !== "body" || d.column.index !== 0 || !two)
+                    return;
+                const lh = lineMm(BRAND_PT);
+                const lines = two.top.length + two.bottom.length;
+                let yy = d.cell.y + (d.cell.height - lines * lh) / 2;
+                const x = d.cell.x + PAD;
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(BRAND_PT);
+                doc.setTextColor(...INK);
+                two.top.forEach((t) => {
+                    doc.text(t, x, yy + lh / 2, { baseline: "middle" });
+                    yy += lh;
+                });
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(GENERIC_PT);
+                doc.setTextColor(...SUB);
+                two.bottom.forEach((t) => {
+                    doc.text(t, x, yy + lh / 2, { baseline: "middle" });
+                    yy += lh;
+                });
+                doc.setTextColor(...INK);
             },
         });
         y = doc.lastAutoTable.finalY + 4;

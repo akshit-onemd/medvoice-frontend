@@ -26,10 +26,16 @@ import {
     Sparkles,
     ScanLine,
     Play,
+    ShieldCheck,
+    Contact,
 } from "lucide-react";
 import SearchInput from "./SearchInput";
 import PatientForm from "./PatientForm";
 import { searchPatients, createPatient } from "../api/processAudio";
+import useConsent from "../hooks/useConsent";
+import ConsentFlow from "./ConsentFlow";
+import ConsentBadge from "./ConsentBadge";
+import { PatientDetailsDialog } from "./PatientDetails";
 import ScanPages from "./ScanPages";
 function formatSize(bytes) {
     if (!bytes) return "";
@@ -89,6 +95,9 @@ export default function UploadPanel({
     const [searchedFor, setSearchedFor] = useState("");
     const [fileLabel, setFileLabel] = useState("");
     const [isPaused, setIsPaused] = useState(false);
+    const [consent, setConsent] = useConsent(selectedPatient?.id);
+    const [showConsent, setShowConsent] = useState(false);
+    const [showDetails, setShowDetails] = useState(false);
     const pausedRef = useRef(false);
     const activeMsRef = useRef(0);
     const segStartRef = useRef(0);
@@ -184,7 +193,7 @@ export default function UploadPanel({
 
     const triggerUpload = () => {
         if (!hasPatient) {
-            setError("Select or add a patient before uploading.");
+            setError(blockedMessage());
             return;
         }
         inputRef.current?.click();
@@ -328,6 +337,7 @@ export default function UploadPanel({
         try {
             const p = await createPatient(payload);
             setSelectedPatient(p);
+            setShowConsent(true); // can be closed and done later
             setNewPatientSeed(null);
             removeItem("form:new-patient");
         } catch (err) {
@@ -337,12 +347,19 @@ export default function UploadPanel({
         }
     };
 
-    const hasPatient = !!selectedPatient;
+    const consentOk = !!selectedPatient && consent === "valid";
+    const hasPatient = consentOk;
+    const blockedMessage = () =>
+        !selectedPatient
+            ? "Select or add a patient first."
+            : consent === null
+              ? "Checking consent…"
+              : "Collect the patient's consent before recording or generating.";
     const startRecording = async () => {
         setError("");
 
         if (!hasPatient) {
-            setError("Select or add a patient before recording.");
+            setError(blockedMessage());
             return;
         }
 
@@ -475,8 +492,8 @@ export default function UploadPanel({
     };
 
     const handleSubmit = () => {
-        if (!selectedPatient) {
-            setError("Search and select a patient.");
+        if (!consentOk) {
+            setError(blockedMessage());
             return;
         }
         if (!file && attachments.length === 0) {
@@ -545,8 +562,9 @@ export default function UploadPanel({
                     {selectedPatient ? (
                         <div className="flex items-center gap-3 rounded border border-clinical-500 bg-clinical-50 px-4 py-3">
                             <div className="flex-1">
-                                <p className="text-base text-ink">
+                                <p className="flex flex-wrap items-center gap-2 text-base text-ink">
                                     {selectedPatient.name}
+                                    <ConsentBadge status={consent} />
                                 </p>
                                 <p className="text-sm text-muted">
                                     {[
@@ -559,6 +577,27 @@ export default function UploadPanel({
                                         .join(" · ")}
                                 </p>
                             </div>
+                            {consent && consent !== "valid" && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConsent(true)}
+                                    disabled={isRecording}
+                                    className="inline-flex shrink-0 items-center gap-1 rounded bg-clinical-500 px-3 py-1.5 text-xs font-medium text-paper hover:bg-clinical-600 disabled:opacity-40"
+                                >
+                                    <ShieldCheck size={14} />
+                                    {consent === "outdated"
+                                        ? "Re-sign"
+                                        : "Collect consent"}
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowDetails(true)}
+                                className="inline-flex shrink-0 items-center gap-1 text-xs text-clinical-600 underline underline-offset-2"
+                            >
+                                <Contact size={14} strokeWidth={1.75} />
+                                Details
+                            </button>
                             <button
                                 type="button"
                                 onClick={changePatient}
@@ -610,8 +649,16 @@ export default function UploadPanel({
                                                     }
                                                     className="min-w-0 flex-1 text-left px-3 py-3 hover:bg-paper"
                                                 >
-                                                    <p className="text-sm text-ink truncate">
-                                                        {p.name}
+                                                    <p className="flex items-center gap-2 text-sm text-ink">
+                                                        <span className="truncate">
+                                                            {p.name}
+                                                        </span>
+                                                        <ConsentBadge
+                                                            status={
+                                                                p.consent_status ||
+                                                                "none"
+                                                            }
+                                                        />
                                                     </p>
                                                     <p className="text-xs text-muted">
                                                         {[
@@ -768,7 +815,9 @@ export default function UploadPanel({
                 )}
                 {!file && !hasPatient && (
                     <p className="mt-2 text-xs text-muted">
-                        Select or add a patient above to enable recording.
+                        {selectedPatient
+                            ? "Recording is enabled once the patient's consent is recorded."
+                            : "Select or add a patient above to enable recording."}
                     </p>
                 )}
                 {file && (
@@ -942,7 +991,7 @@ export default function UploadPanel({
                     disabled={
                         isRecording ||
                         (!file && attachments.length === 0) ||
-                        !selectedPatient
+                        !consentOk
                     }
                     className="mt-6 flex w-full items-center justify-center gap-2 rounded bg-clinical-500 text-paper py-3 text-base font-medium hover:bg-clinical-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
@@ -950,6 +999,23 @@ export default function UploadPanel({
                     Generate summary
                 </button>
             </div>
+            {showDetails && selectedPatient && (
+                <PatientDetailsDialog
+                    patient={selectedPatient}
+                    consent={consent}
+                    onClose={() => setShowDetails(false)}
+                />
+            )}
+            {showConsent && selectedPatient && (
+                <ConsentFlow
+                    patient={selectedPatient}
+                    onCancel={() => setShowConsent(false)}
+                    onDone={(status) => {
+                        setConsent(status);
+                        setShowConsent(false);
+                    }}
+                />
+            )}
         </div>
     );
 }

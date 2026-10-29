@@ -42,8 +42,11 @@ import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
 import BrandMark from "./BrandMark";
 import PrescriptionEditor from "./PrescriptionEditor";
 import HistorySectionEditor from "./HistorySectionEditor";
-import { refreshSummary, saveCodes } from "../api/processAudio";
-import { withBrandNames } from "../utils/brandDisplay";
+import {
+    refreshSummary,
+    saveCodes,
+    getConsultation,
+} from "../api/processAudio";
 const DEFAULT_VITALS = [
     {
         name: "Systolic Blood Pressure",
@@ -70,6 +73,53 @@ function isEmptyValue(v) {
     if (typeof v === "string") return v.trim() === "";
     return false;
 }
+// Codes are looked up after a save. This copies only the code fields from a fresh copy of the
+// record, so nothing the doctor is typing or has just changed gets replaced.
+const CODEISH = /code|_verified|_corrected|umls_term|_status|_alts|_pending/;
+const CODED_LISTS = [
+    ["prescription", "symptoms"],
+    ["prescription", "diagnosis"],
+    ["allergies"],
+    ["conditions"],
+    ["procedures"],
+    ["lifestyle_habits"],
+    ["social_history"],
+];
+const pathGet = (o, p) => p.reduce((x, k) => x?.[k], o);
+const pathSet = (o, p, v) =>
+    p.length === 1
+        ? { ...o, [p[0]]: v }
+        : { ...o, [p[0]]: pathSet(o?.[p[0]] || {}, p.slice(1), v) };
+function mergeCodes(cur, fresh) {
+    let next = cur;
+    for (const p of CODED_LISTS) {
+        const a = pathGet(cur, p);
+        const b = pathGet(fresh, p);
+        if (!Array.isArray(a) || !Array.isArray(b)) continue;
+        const nm = (e) =>
+            String(e?.name || "")
+                .trim()
+                .toLowerCase();
+        const merged = a.map((e) => {
+            const m = b.find((x) => nm(x) && nm(x) === nm(e));
+            if (!m) return e;
+            const o = { ...e };
+            for (const k of Object.keys(m)) if (CODEISH.test(k)) o[k] = m[k];
+            for (const k of Object.keys(o))
+                if (CODEISH.test(k) && !(k in m)) delete o[k];
+            return o;
+        });
+        next = pathSet(next, p, merged);
+    }
+    return next;
+}
+const hasPendingCodes = (doc) =>
+    CODED_LISTS.some((p) =>
+        (pathGet(doc, p) || []).some((e) =>
+            Object.keys(e || {}).some((k) => k.endsWith("_pending") && e[k]),
+        ),
+    );
+
 const cleanDoc = (d) => {
     if (!d || !d.raw_response) return d || {};
     const { raw_response, ...rest } = d; // eslint-disable-line no-unused-vars
@@ -116,6 +166,7 @@ export default function ResultView({ result, onReset }) {
     const data = doc;
     const rx = data.prescription || null;
     // and the freshly regenerated consultation_summary into local state.
+    // Saving is quick now. The overview and any new codes arrive a little later.
     const saveSection = (key) => (body) => {
         setDoc((d) => ({
             ...d,
@@ -124,13 +175,16 @@ export default function ResultView({ result, onReset }) {
                 body.consultation_summary ?? d.consultation_summary,
         }));
         setEditingSection(null);
+        refreshOverview();
+        if (body.codes_pending) watchCodes();
     };
     const applyVoiceBody = (body) => {
         setDoc((d) => ({ ...d, ...(body.patch || {}) }));
         setEditingSection(null);
         refreshOverview();
+        if (body.codes_pending) watchCodes();
     };
-    const applySuggestion = (body) =>
+    const applySuggestion = (body) => {
         setDoc((d) => ({
             ...d,
             ...(body.prescription ? { prescription: body.prescription } : {}),
@@ -138,6 +192,34 @@ export default function ResultView({ result, onReset }) {
             consultation_summary:
                 body.consultation_summary ?? d.consultation_summary,
         }));
+        if (body.prescription) {
+            refreshOverview(); // medicines were added
+            if (body.codes_pending) watchCodes();
+        }
+    };
+
+    // Looks again a few times until the new codes have been written
+    const codeTimers = useRef([]);
+    useEffect(
+        () => () => codeTimers.current.forEach((t) => clearTimeout(t)),
+        [],
+    );
+    const watchCodes = () => {
+        codeTimers.current.forEach((t) => clearTimeout(t));
+        codeTimers.current = [5000, 12000, 25000, 45000].map((ms) =>
+            setTimeout(async () => {
+                try {
+                    const fresh = await getConsultation(consultationId);
+                    const next = cleanDoc(fresh?.structured_data);
+                    setDoc((d) => mergeCodes(d, next));
+                    if (!hasPendingCodes(next))
+                        codeTimers.current.forEach((t) => clearTimeout(t));
+                } catch {
+                    /* the codes will show on the next visit */
+                }
+            }, ms),
+        );
+    };
     const [summaryBusy, setSummaryBusy] = useState(false);
     const refreshTicket = useRef(0);
 
@@ -357,9 +439,7 @@ export default function ResultView({ result, onReset }) {
                                             : null
                                     }
                                 >
-                                    <PrescriptionCard
-                                        prescription={withBrandNames(rx)}
-                                    />
+                                    <PrescriptionCard prescription={rx} />
                                 </CardActionContext.Provider>
                             )}
                         </div>

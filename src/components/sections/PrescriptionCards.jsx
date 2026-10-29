@@ -7,6 +7,7 @@ import {
     CalendarClock,
 } from "lucide-react";
 import { MetaRow, Chip, CodeRow, SectionCard, usableList } from "./shared";
+import { medLines } from "../../utils/brandDisplay";
 
 function SubSection({ icon: Icon, label, tone, children }) {
     return (
@@ -149,20 +150,13 @@ export function PrescriptionCard({ prescription }) {
                                     className="py-2.5 first:pt-0 last:pb-0"
                                 >
                                     <p className="font-medium text-base text-ink">
-                                        {m.name}
+                                        {medLines(m).primary}
                                     </p>
-                                    <CodeRow
-                                        codes={[
-                                            {
-                                                system: "RxNorm",
-                                                code: m.rxnorm_code,
-                                                verified:
-                                                    m.rxnorm_code_verified,
-                                                corrected:
-                                                    m.rxnorm_code_corrected,
-                                            },
-                                        ]}
-                                    />
+                                    {medLines(m).secondary && (
+                                        <p className="text-xs text-muted">
+                                            {medLines(m).secondary}
+                                        </p>
+                                    )}
                                     {Array.isArray(m.dosage) &&
                                         m.dosage.length > 0 && (
                                             <div className="flex flex-wrap mt-1.5">

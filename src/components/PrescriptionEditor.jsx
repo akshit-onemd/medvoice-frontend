@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { updatePrescription } from "../api/processAudio";
 import useFocusNewRow from "../hooks/useFocusNewRow";
+import { MedicineField } from "./MedicineSearch";
 const inputCls =
     "w-full rounded border border-line px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 const s = (v) => (v === null || v === undefined ? "" : String(v));
@@ -103,7 +104,8 @@ export default function PrescriptionEditor({
         setError("");
         setSaving(true);
         try {
-            const strip = (rows) => rows.map(({ _voice, ...r }) => r); // eslint-disable-line no-unused-vars
+            const strip = (rows) =>
+                rows.map(({ _voice, _genericOk, ...r }) => r); // eslint-disable-line no-unused-vars
             const payload = {
                 ...form,
                 symptoms: strip(form.symptoms),
@@ -194,6 +196,7 @@ export default function PrescriptionEditor({
                 onAdd={() =>
                     add("medications", {
                         name: "",
+                        brand: "",
                         dosage: "",
                         duration: "",
                         instructions: "",
@@ -206,17 +209,14 @@ export default function PrescriptionEditor({
                         voice={e._voice}
                         onRemove={() => remove("medications", i)}
                     >
-                        <Field label="Medicine">
-                            <input
-                                className={inputCls}
-                                value={s(e.name)}
-                                onChange={(ev) =>
-                                    update("medications", i, {
-                                        name: ev.target.value,
-                                    })
+                        <div className="sm:col-span-2">
+                            <MedicineField
+                                value={e}
+                                onChange={(patch) =>
+                                    update("medications", i, patch)
                                 }
                             />
-                        </Field>
+                        </div>
                         <Field label="Dosage">
                             <input
                                 className={inputCls}
@@ -246,17 +246,6 @@ export default function PrescriptionEditor({
                                 onChange={(ev) =>
                                     update("medications", i, {
                                         instructions: ev.target.value,
-                                    })
-                                }
-                            />
-                        </Field>
-                        <Field label="Brand (optional)">
-                            <input
-                                className={inputCls}
-                                value={s(e.brand)}
-                                onChange={(ev) =>
-                                    update("medications", i, {
-                                        brand: ev.target.value,
                                     })
                                 }
                             />

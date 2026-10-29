@@ -157,7 +157,7 @@ export default function BrandSettings() {
                         />
                         <input
                             className="w-full rounded border border-line bg-paper py-2 pl-9 pr-3 text-sm text-ink outline-none focus:border-clinical-500"
-                            placeholder="Add a medicine, for example paracetamol"
+                            placeholder="Search a medicine or brand, for example paracetamol or Crocin"
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
                         />
@@ -180,7 +180,14 @@ export default function BrandSettings() {
                                         }
                                         className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
                                     >
-                                        <span>{h.label}</span>
+                                        <span>
+                                            {h.label}
+                                            {h.matched_brand && (
+                                                <span className="ml-2 text-xs text-muted">
+                                                    brand: {h.matched_brand}
+                                                </span>
+                                            )}
+                                        </span>
                                         <span className="text-xs text-muted">
                                             {h.brand_count} products
                                         </span>

@@ -24,6 +24,7 @@ const SAMPLE_CONSULT = {
             medications: [
                 {
                     name: "Aspirin 75 mg",
+                    brand: "Ecosprin 75 mg",
                     dosage: ["0-0-1"],
                     duration: "30 days",
                     instructions: "After food",

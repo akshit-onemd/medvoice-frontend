@@ -39,9 +39,7 @@ const SPEC = [
     ["procedures", "Procedure", [["snomed_ct_code", "snomed"]]],
     ["lifestyle_habits", "Lifestyle", [["snomed_ct_code", "snomed"]]],
     ["social_history", "Social history", [["snomed_ct_code", "snomed"]]],
-    ["medication_history", "Medicine taken", [["rxnorm_code", "rxnorm"]]],
     ["prescription.symptoms", "Symptom", [["snomed_ct_code", "snomed"]]],
-    ["prescription.medications", "Prescribed", [["rxnorm_code", "rxnorm"]]],
     [
         "prescription.diagnosis",
         "Diagnosis",

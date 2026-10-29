@@ -1,13 +1,6 @@
 import React from "react";
 import { Pill, FlaskConical } from "lucide-react";
-import {
-    SectionCard,
-    EmptyNote,
-    MetaRow,
-    Chip,
-    CodeRow,
-    usableList,
-} from "./shared";
+import { SectionCard, EmptyNote, MetaRow, Chip, usableList } from "./shared";
 const STATUS_TONE = {
     active: "bg-clinical-50 text-clinical-600",
     ongoing: "bg-clinical-50 text-clinical-600",
@@ -43,23 +36,12 @@ export function MedicationsCard({ medications }) {
                                     {m.name || "Unnamed medication"}
                                     {m.dosage && (
                                         <span className="text-muted">
-                                            
                                             · {m.dosage}
                                         </span>
                                     )}
                                 </p>
                                 <StatusTag status={m.status} />
                             </div>
-                            <CodeRow
-                                codes={[
-                                    {
-                                        system: "RxNorm",
-                                        code: m.rxnorm_code,
-                                        verified: m.rxnorm_code_verified,
-                                        corrected: m.rxnorm_code_corrected,
-                                    },
-                                ]}
-                            />
                             <MetaRow
                                 items={[
                                     { label: "Duration", value: m.duration },

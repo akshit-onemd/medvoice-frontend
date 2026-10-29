@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { applyVoiceRows } from "../api/processAudio";
 import { useDirtyFlag } from "../hooks/useDirty";
+import MedicinePicker from "./MedicineSearch";
+import { medLines } from "../utils/brandDisplay";
 
 const arr = (v) => (Array.isArray(v) ? v : []);
 const dash = (parts) => parts.filter(Boolean).join(" · ");
@@ -151,8 +153,27 @@ export default function VoiceReviewDialog({
     const [editSel, setEditSel] = useState(
         () => new Set(edits.map((_, i) => i)),
     );
+    // Medicines: the doctor must pick a brand (or keep generic) before a generic-only medicine is applied
+    const [medFix, setMedFix] = useState({}); // id -> { name, brand }
+    const [openPick, setOpenPick] = useState(() => new Set());
+    const isMed = (it) => it.m.path === "prescription.medications";
+    const rowOf = (it) =>
+        medFix[it.id] ? { ...it.row, ...medFix[it.id] } : it.row;
+    const needsBrand = (it) =>
+        isMed(it) &&
+        !medFix[it.id] &&
+        !String(it.row.brand || "").trim() &&
+        String(it.row.name || "").trim() !== "";
     const chosen = items.filter((i) => selected.has(i.id));
+    const unresolved = chosen.filter(needsBrand).length;
     const total = chosen.length + editSel.size;
+    const togglePick = (id) =>
+        setOpenPick((s) => {
+            const n = new Set(s);
+            if (n.has(id)) n.delete(id);
+            else n.add(id);
+            return n;
+        });
 
     useEffect(() => {
         const prev = document.body.style.overflow;
@@ -189,7 +210,8 @@ export default function VoiceReviewDialog({
     const apply = async () => {
         const payload = EMPTY();
         items.forEach(
-            (it) => selected.has(it.id) && pushPath(payload, it.m.path, it.row),
+            (it) =>
+                selected.has(it.id) && pushPath(payload, it.m.path, rowOf(it)),
         );
         const sent = edits
             .filter((_, i) => editSel.has(i))
@@ -356,6 +378,13 @@ export default function VoiceReviewDialog({
                                         <ul className="mt-1.5 divide-y divide-line overflow-hidden rounded border border-line">
                                             {rows.map((it) => {
                                                 const detail = m.detail(it.row);
+                                                const lines = isMed(it)
+                                                    ? medLines(rowOf(it))
+                                                    : null;
+                                                const pickerOpen =
+                                                    selected.has(it.id) &&
+                                                    (needsBrand(it) ||
+                                                        openPick.has(it.id));
                                                 return (
                                                     <li key={it.id}>
                                                         <label className="flex cursor-pointer items-start gap-3 px-3 py-2.5 hover:bg-paper">
@@ -374,8 +403,16 @@ export default function VoiceReviewDialog({
                                                             />
                                                             <div className="min-w-0 flex-1">
                                                                 <p className="text-sm text-ink">
-                                                                    {m.title(
-                                                                        it.row,
+                                                                    {lines ? (
+                                                                        <span className="font-medium">
+                                                                            {
+                                                                                lines.primary
+                                                                            }
+                                                                        </span>
+                                                                    ) : (
+                                                                        m.title(
+                                                                            it.row,
+                                                                        )
                                                                     )}
                                                                     {it.tag && (
                                                                         <span className="ml-2 rounded-full border border-line bg-paper px-1.5 py-0.5 text-[10px] text-muted">
@@ -385,6 +422,13 @@ export default function VoiceReviewDialog({
                                                                         </span>
                                                                     )}
                                                                 </p>
+                                                                {lines?.secondary && (
+                                                                    <p className="text-xs text-muted">
+                                                                        {
+                                                                            lines.secondary
+                                                                        }
+                                                                    </p>
+                                                                )}
                                                                 {detail && (
                                                                     <p className="text-xs text-muted">
                                                                         {detail}
@@ -392,6 +436,139 @@ export default function VoiceReviewDialog({
                                                                 )}
                                                             </div>
                                                         </label>
+                                                        {isMed(it) &&
+                                                            selected.has(
+                                                                it.id,
+                                                            ) && (
+                                                                <div className="px-3 pb-3 pl-9">
+                                                                    {needsBrand(
+                                                                        it,
+                                                                    ) && (
+                                                                        <p className="mb-1 text-xs text-alert-500">
+                                                                            Heard
+                                                                            a
+                                                                            generic
+                                                                            name.
+                                                                            Choose
+                                                                            the
+                                                                            brand
+                                                                            to
+                                                                            prescribe.
+                                                                        </p>
+                                                                    )}
+                                                                    {pickerOpen ? (
+                                                                        <MedicinePicker
+                                                                            initialQuery={
+                                                                                it
+                                                                                    .row
+                                                                                    .name ||
+                                                                                it
+                                                                                    .row
+                                                                                    .brand
+                                                                            }
+                                                                            keepText={
+                                                                                needsBrand(
+                                                                                    it,
+                                                                                )
+                                                                                    ? it
+                                                                                          .row
+                                                                                          .name
+                                                                                    : ""
+                                                                            }
+                                                                            onKeep={() =>
+                                                                                setMedFix(
+                                                                                    (
+                                                                                        f,
+                                                                                    ) => ({
+                                                                                        ...f,
+                                                                                        [it.id]:
+                                                                                            {
+                                                                                                name: it
+                                                                                                    .row
+                                                                                                    .name,
+                                                                                                brand: "",
+                                                                                            },
+                                                                                    }),
+                                                                                )
+                                                                            }
+                                                                            onPick={(
+                                                                                p,
+                                                                            ) => {
+                                                                                setMedFix(
+                                                                                    (
+                                                                                        f,
+                                                                                    ) => ({
+                                                                                        ...f,
+                                                                                        [it.id]:
+                                                                                            {
+                                                                                                name: p.name,
+                                                                                                brand: p.brand,
+                                                                                            },
+                                                                                    }),
+                                                                                );
+                                                                                setOpenPick(
+                                                                                    (
+                                                                                        s,
+                                                                                    ) => {
+                                                                                        const n =
+                                                                                            new Set(
+                                                                                                s,
+                                                                                            );
+                                                                                        n.delete(
+                                                                                            it.id,
+                                                                                        );
+                                                                                        return n;
+                                                                                    },
+                                                                                );
+                                                                            }}
+                                                                            onUseTyped={(
+                                                                                t,
+                                                                            ) => {
+                                                                                setMedFix(
+                                                                                    (
+                                                                                        f,
+                                                                                    ) => ({
+                                                                                        ...f,
+                                                                                        [it.id]:
+                                                                                            {
+                                                                                                name: t,
+                                                                                                brand: "",
+                                                                                            },
+                                                                                    }),
+                                                                                );
+                                                                                setOpenPick(
+                                                                                    (
+                                                                                        s,
+                                                                                    ) => {
+                                                                                        const n =
+                                                                                            new Set(
+                                                                                                s,
+                                                                                            );
+                                                                                        n.delete(
+                                                                                            it.id,
+                                                                                        );
+                                                                                        return n;
+                                                                                    },
+                                                                                );
+                                                                            }}
+                                                                        />
+                                                                    ) : (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                togglePick(
+                                                                                    it.id,
+                                                                                )
+                                                                            }
+                                                                            className="text-xs text-clinical-600 underline underline-offset-2"
+                                                                        >
+                                                                            Search
+                                                                            medicine
+                                                                            database
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                     </li>
                                                 );
                                             })}
@@ -424,14 +601,16 @@ export default function VoiceReviewDialog({
                         <button
                             type="button"
                             onClick={apply}
-                            disabled={!total || busy}
+                            disabled={!total || busy || unresolved > 0}
                             className="flex-1 rounded bg-clinical-500 py-2.5 text-sm font-medium text-paper hover:bg-clinical-600 disabled:opacity-40"
                         >
                             {busy
                                 ? "Applying…"
-                                : total
-                                  ? `Apply ${total} to record`
-                                  : "Tick rows to apply"}
+                                : unresolved > 0
+                                  ? `Choose a brand for ${unresolved} medicine${unresolved === 1 ? "" : "s"}`
+                                  : total
+                                    ? `Apply ${total} to record`
+                                    : "Tick rows to apply"}
                         </button>
                         <button
                             type="button"

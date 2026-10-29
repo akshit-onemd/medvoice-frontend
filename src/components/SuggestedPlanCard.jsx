@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Sparkles, ChevronDown } from "lucide-react";
 import BrandRow from "./BrandRow";
+import MedicinePicker from "./MedicineSearch";
 import {
     approveSuggestion,
     setSuggestionStatus,
@@ -31,6 +32,82 @@ const GROUPS = [
     ["diagnosis", "Diagnosis"],
     ["followup", "Follow up"],
 ];
+
+// The brand decision for one suggested medicine
+function MedChoice({
+    it,
+    pick,
+    info,
+    busy,
+    searching,
+    onDecide,
+    onSearch,
+    onStar,
+}) {
+    if (pick) {
+        return (
+            <p className="pb-2.5 pl-9 pr-3 text-xs text-ink">
+                {pick.generic
+                    ? `Generic: ${it.name}`
+                    : `${pick.brand}${pick.name ? ` · ${pick.name}` : ""}`}
+                <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onDecide(null)}
+                    className="ml-2 text-clinical-600 underline underline-offset-2 disabled:opacity-40"
+                >
+                    Change
+                </button>
+            </p>
+        );
+    }
+    return (
+        <div className="pb-2.5">
+            <p className="pl-9 pr-3 text-xs font-medium text-alert-500">
+                Choose a brand for this medicine
+            </p>
+            <BrandRow
+                info={info}
+                selected=""
+                disabled={busy}
+                onSelect={(n) => n && onDecide({ brand: n })}
+                onStar={onStar}
+            />
+            {searching ? (
+                <div className="pl-9 pr-3">
+                    <MedicinePicker
+                        autoFocus
+                        initialQuery={it.name}
+                        keepText={it.name}
+                        onKeep={() => onDecide({ generic: true })}
+                        onPick={(p) =>
+                            onDecide({ brand: p.brand, name: p.name })
+                        }
+                    />
+                </div>
+            ) : (
+                <div className="flex gap-3 pl-9 pr-3 pt-1 text-xs">
+                    <button
+                        type="button"
+                        disabled={busy}
+                        onClick={onSearch}
+                        className="text-clinical-600 underline underline-offset-2 disabled:opacity-40"
+                    >
+                        Search all medicines
+                    </button>
+                    <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => onDecide({ generic: true })}
+                        className="text-muted underline underline-offset-2 disabled:opacity-40"
+                    >
+                        Keep as generic
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function SuggestedPlanCard({
     consultationId,
@@ -86,7 +163,18 @@ export default function SuggestedPlanCard({
         }
     };
     const [brandInfo, setBrandInfo] = useState({});
+    // id -> { brand, name } (a brand was chosen) or { generic: true } (kept as written)
     const [brandPick, setBrandPick] = useState({});
+    const [searching, setSearching] = useState({});
+    const decide = (id, v) => {
+        setBrandPick((s) => {
+            const n = { ...s };
+            if (v) n[id] = v;
+            else delete n[id];
+            return n;
+        });
+        setSearching((s) => ({ ...s, [id]: false }));
+    };
 
     useEffect(() => {
         if (!open || plan?.status !== "pending") return;
@@ -200,8 +288,12 @@ export default function SuggestedPlanCard({
             return n;
         });
 
+    const needsBrand = (i) =>
+        i.kind === "medication" && !isAlready(i) && !brandPick[i.id];
+    const unresolved = chosen.filter(needsBrand);
+
     const approve = () => {
-        if (!chosen.length) return;
+        if (!chosen.length || unresolved.length) return;
         const warned = chosen.filter((i) => warnFor(i));
         if (
             warned.length &&
@@ -213,7 +305,7 @@ export default function SuggestedPlanCard({
         }
         const picked = Object.fromEntries(
             chosen
-                .filter((i) => brandPick[i.id])
+                .filter((i) => brandPick[i.id] && !brandPick[i.id].generic)
                 .map((i) => [i.id, brandPick[i.id]]),
         );
         run("approve", () =>
@@ -352,29 +444,39 @@ export default function SuggestedPlanCard({
                                                         )}
                                                     </div>
                                                 </label>
-                                                {it.kind === "medication" && (
-                                                    <BrandRow
-                                                        info={brandInfo[it.id]}
-                                                        selected={
-                                                            brandPick[it.id] ||
-                                                            ""
-                                                        }
-                                                        disabled={
-                                                            !!busy || already
-                                                        }
-                                                        onSelect={(n) =>
-                                                            setBrandPick(
-                                                                (s) => ({
-                                                                    ...s,
-                                                                    [it.id]: n,
-                                                                }),
-                                                            )
-                                                        }
-                                                        onStar={(b) =>
-                                                            star(it, b)
-                                                        }
-                                                    />
-                                                )}
+                                                {it.kind === "medication" &&
+                                                    !already &&
+                                                    selected.has(it.id) && (
+                                                        <MedChoice
+                                                            it={it}
+                                                            pick={
+                                                                brandPick[it.id]
+                                                            }
+                                                            info={
+                                                                brandInfo[it.id]
+                                                            }
+                                                            busy={!!busy}
+                                                            searching={
+                                                                !!searching[
+                                                                    it.id
+                                                                ]
+                                                            }
+                                                            onDecide={(v) =>
+                                                                decide(it.id, v)
+                                                            }
+                                                            onSearch={() =>
+                                                                setSearching(
+                                                                    (s) => ({
+                                                                        ...s,
+                                                                        [it.id]: true,
+                                                                    }),
+                                                                )
+                                                            }
+                                                            onStar={(b2) =>
+                                                                star(it, b2)
+                                                            }
+                                                        />
+                                                    )}
                                             </li>
                                         );
                                     })}
@@ -391,14 +493,20 @@ export default function SuggestedPlanCard({
                         <button
                             type="button"
                             onClick={approve}
-                            disabled={!chosen.length || !!busy}
+                            disabled={
+                                !chosen.length ||
+                                !!busy ||
+                                unresolved.length > 0
+                            }
                             className="flex-1 rounded bg-clinical-500 py-2.5 text-sm font-medium text-paper hover:bg-clinical-600 disabled:opacity-40"
                         >
                             {busy === "approve"
                                 ? "Adding…"
-                                : chosen.length
-                                  ? `Add ${chosen.length} selected to prescription`
-                                  : "Tick items to add"}
+                                : unresolved.length
+                                  ? `Choose a brand for ${unresolved.length} medicine${unresolved.length > 1 ? "s" : ""}`
+                                  : chosen.length
+                                    ? `Add ${chosen.length} selected to prescription`
+                                    : "Tick items to add"}
                         </button>
                         <button
                             type="button"
