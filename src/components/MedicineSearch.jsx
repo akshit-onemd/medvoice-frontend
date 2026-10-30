@@ -64,10 +64,12 @@ export default function MedicinePicker({
                     onChange={(e) => setQ(e.target.value)}
                 />
                 {loading && (
-                    <Loader2
-                        size={14}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted"
-                    />
+                    <span className="absolute right-3 top-1/2 -mt-[7px] flex h-[14px] w-[14px] items-center justify-center">
+                        <Loader2
+                            size={14}
+                            className="animate-spin text-muted"
+                        />
+                    </span>
                 )}
             </div>
 

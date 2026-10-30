@@ -445,20 +445,26 @@ export default function VoiceReviewDialog({
                                                                         it,
                                                                     ) && (
                                                                         <p className="mb-1 text-xs text-alert-500">
-                                                                            Heard
-                                                                            a
-                                                                            generic
-                                                                            name.
+                                                                            No
+                                                                            brand
+                                                                            matched.
                                                                             Choose
                                                                             the
                                                                             brand
                                                                             to
-                                                                            prescribe.
+                                                                            prescribe,
+                                                                            or
+                                                                            keep
+                                                                            it
+                                                                            generic.
                                                                         </p>
                                                                     )}
                                                                     {pickerOpen ? (
                                                                         <MedicinePicker
                                                                             initialQuery={
+                                                                                it
+                                                                                    .row
+                                                                                    .spoken ||
                                                                                 it
                                                                                     .row
                                                                                     .name ||
@@ -563,8 +569,6 @@ export default function VoiceReviewDialog({
                                                                             className="text-xs text-clinical-600 underline underline-offset-2"
                                                                         >
                                                                             Search
-                                                                            medicine
-                                                                            database
                                                                         </button>
                                                                     )}
                                                                 </div>
