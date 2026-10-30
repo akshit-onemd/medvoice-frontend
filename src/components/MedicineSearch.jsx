@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Search, Loader2, Pencil } from "lucide-react";
 import { searchBrandProducts } from "../api/processAudio";
 import { medLines } from "../utils/brandDisplay";
+
+// Remembers recent searches for the session, so repeating one is instant
+const SEARCH_CACHE = new Map();
 
 const inputCls =
     "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
@@ -21,6 +24,7 @@ export default function MedicinePicker({
     const [hits, setHits] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const first = useRef(!!initialQuery.trim());
 
     useEffect(() => {
         const t = q.trim();
@@ -29,19 +33,36 @@ export default function MedicinePicker({
             setLoading(false);
             return;
         }
+        const key = t.toLowerCase();
+        // Seen this search already: show it at once
+        if (SEARCH_CACHE.has(key)) {
+            setHits(SEARCH_CACHE.get(key));
+            setLoading(false);
+            setError("");
+            return;
+        }
         let off = false;
         setLoading(true);
         setError("");
+        // The first search (the pre-filled text) goes out at once. Typing waits a moment.
+        const wait = first.current ? 0 : 150;
+        first.current = false;
         const h = setTimeout(() => {
             searchBrandProducts(t)
-                .then((d) => !off && setHits(d.results || []))
+                .then((d) => {
+                    const r = d.results || [];
+                    SEARCH_CACHE.set(key, r);
+                    if (SEARCH_CACHE.size > 60)
+                        SEARCH_CACHE.delete(SEARCH_CACHE.keys().next().value);
+                    if (!off) setHits(r);
+                })
                 .catch(() => {
                     if (off) return;
                     setHits([]);
                     setError("Search failed. Try again.");
                 })
                 .finally(() => !off && setLoading(false));
-        }, 300);
+        }, wait);
         return () => {
             off = true;
             clearTimeout(h);

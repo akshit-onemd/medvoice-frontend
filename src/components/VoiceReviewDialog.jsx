@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { applyVoiceRows } from "../api/processAudio";
 import { useDirtyFlag } from "../hooks/useDirty";
 import MedicinePicker from "./MedicineSearch";
+import ConfirmDialog from "./ConfirmDialog";
 import { medLines } from "../utils/brandDisplay";
 
 const arr = (v) => (Array.isArray(v) ? v : []);
@@ -120,11 +121,19 @@ export default function VoiceReviewDialog({
     doc,
     editorOpen,
     onApplied,
-    onClose,
+    onClose: closeNow,
 }) {
     useDirtyFlag(true); // Back warns while this is open
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
+    // Closing throws away what was heard, so ask first (unless there is nothing to lose)
+    const [askDiscard, setAskDiscard] = useState(false);
+    const onClose = () => {
+        if (busy || askDiscard) return;
+        const empty = items.length === 0 && edits.length === 0;
+        if (empty) closeNow();
+        else setAskDiscard(true);
+    };
     const [showAll, setShowAll] = useState(false);
     const panelRef = useRef(null);
 
@@ -225,7 +234,7 @@ export default function VoiceReviewDialog({
         setError("");
         try {
             onApplied(await applyVoiceRows(consultationId, payload, sent));
-            onClose();
+            closeNow();
         } catch (err) {
             setError(
                 err.message || "Couldn't update the record. Please try again.",
@@ -464,13 +473,13 @@ export default function VoiceReviewDialog({
                                                                             initialQuery={
                                                                                 it
                                                                                     .row
+                                                                                    .brand ||
+                                                                                it
+                                                                                    .row
                                                                                     .spoken ||
                                                                                 it
                                                                                     .row
-                                                                                    .name ||
-                                                                                it
-                                                                                    .row
-                                                                                    .brand
+                                                                                    .name
                                                                             }
                                                                             keepText={
                                                                                 needsBrand(
@@ -627,6 +636,17 @@ export default function VoiceReviewDialog({
                     </div>
                 </div>
             </div>
+            {askDiscard && (
+                <ConfirmDialog
+                    title="Discard what was heard?"
+                    message="Nothing has been added to the record yet. If you close this, the recording is lost."
+                    confirmLabel="Discard"
+                    cancelLabel="Keep reviewing"
+                    destructive
+                    onConfirm={closeNow}
+                    onCancel={() => setAskDiscard(false)}
+                />
+            )}
         </div>
     );
 }

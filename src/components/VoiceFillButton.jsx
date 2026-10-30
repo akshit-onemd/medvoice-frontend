@@ -4,6 +4,7 @@ import useVoiceCapture from "../hooks/useVoiceCapture";
 import { useDirtyFlag } from "../hooks/useDirty";
 import { parseVoice } from "../api/processAudio";
 import LiveWaveform from "./LiveWaveform";
+import ConfirmDialog from "./ConfirmDialog";
 
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -15,6 +16,7 @@ export default function VoiceFillButton({
 }) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
+    const [askStop, setAskStop] = useState(false);
 
     const cap = useVoiceCapture({
         onClip: async (blob) => {
@@ -56,7 +58,7 @@ export default function VoiceFillButton({
                     </button>
                     <button
                         type="button"
-                        onClick={cap.cancel}
+                        onClick={() => setAskStop(true)}
                         aria-label="Cancel voice input"
                         className="shrink-0 text-muted hover:text-ink"
                     >
@@ -84,6 +86,20 @@ export default function VoiceFillButton({
             )}
             {shownError && (
                 <p className="mt-2 text-sm text-alert-500">{shownError}</p>
+            )}
+            {askStop && (
+                <ConfirmDialog
+                    title="Discard this recording?"
+                    message="What you have said so far will be lost and nothing will be added to the record."
+                    confirmLabel="Discard"
+                    cancelLabel="Keep recording"
+                    destructive
+                    onConfirm={() => {
+                        setAskStop(false);
+                        cap.cancel();
+                    }}
+                    onCancel={() => setAskStop(false)}
+                />
             )}
         </div>
     );
