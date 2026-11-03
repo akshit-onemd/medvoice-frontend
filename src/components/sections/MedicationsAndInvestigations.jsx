@@ -1,5 +1,6 @@
 import React from "react";
 import { Pill, FlaskConical } from "lucide-react";
+import { medLines } from "../../utils/brandDisplay";
 import { SectionCard, EmptyNote, MetaRow, Chip, usableList } from "./shared";
 const STATUS_TONE = {
     active: "bg-clinical-50 text-clinical-600",
@@ -33,7 +34,8 @@ export function MedicationsCard({ medications }) {
                         <li key={i} className="py-3 first:pt-0 last:pb-0">
                             <div className="flex items-start justify-between gap-2">
                                 <p className="font-medium text-base text-ink">
-                                    {m.name || "Unnamed medication"}
+                                    {medLines(m).primary ||
+                                        "Unnamed medication"}
                                     {m.dosage && (
                                         <span className="text-muted">
                                             · {m.dosage}
@@ -42,6 +44,11 @@ export function MedicationsCard({ medications }) {
                                 </p>
                                 <StatusTag status={m.status} />
                             </div>
+                            {medLines(m).secondary && (
+                                <p className="text-xs text-muted">
+                                    {medLines(m).secondary}
+                                </p>
+                            )}
                             <MetaRow
                                 items={[
                                     { label: "Duration", value: m.duration },

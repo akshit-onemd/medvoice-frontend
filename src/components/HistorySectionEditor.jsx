@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { updateSection } from "../api/processAudio";
 import useFocusNewRow from "../hooks/useFocusNewRow";
+import { MedicineField } from "./MedicineSearch";
 const inputCls =
     "w-full rounded border border-line px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 const s = (v) => (v === null || v === undefined ? "" : String(v));
@@ -124,6 +125,7 @@ const SIMPLE_CONFIG = {
         label: "Medication",
         fields: [
             ["name", "Medicine"],
+            ["brand", "Brand"],
             ["dosage", "Dosage"],
             ["duration", "Duration"],
             ["start_date", "Start date"],
@@ -157,7 +159,7 @@ function SimpleListEditor({
     );
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
-const [rootRef, focusLast] = useFocusNewRow();
+    const [rootRef, focusLast] = useFocusNewRow();
 
     const update = (i, patch) =>
         setRows((r) =>
@@ -181,7 +183,7 @@ const [rootRef, focusLast] = useFocusNewRow();
         setSaving(true);
         try {
             const payload = rows.map((row) => {
-                const out = { ...row };
+                const { _genericOk, ...out } = row; // eslint-disable-line no-unused-vars
                 if (cfg.listField)
                     out[cfg.listField] = s(row[cfg.listField])
                         .split(";")
@@ -214,17 +216,33 @@ const [rootRef, focusLast] = useFocusNewRow();
             <div className="space-y-3 mb-4">
                 {rows.map((row, i) => (
                     <Row key={i} onRemove={() => remove(i)}>
-                        {cfg.fields.map(([f, label]) => (
-                            <Field key={f} label={label}>
-                                <input
-                                    className={inputCls}
-                                    value={s(row[f])}
-                                    onChange={(e) =>
-                                        update(i, { [f]: e.target.value })
-                                    }
+                        {sectionKey === "medication_history" && (
+                            <div className="sm:col-span-2">
+                                <MedicineField
+                                    value={row}
+                                    onChange={(patch) => update(i, patch)}
                                 />
-                            </Field>
-                        ))}
+                            </div>
+                        )}
+                        {cfg.fields
+                            .filter(
+                                ([f]) =>
+                                    !(
+                                        sectionKey === "medication_history" &&
+                                        (f === "name" || f === "brand")
+                                    ),
+                            )
+                            .map(([f, label]) => (
+                                <Field key={f} label={label}>
+                                    <input
+                                        className={inputCls}
+                                        value={s(row[f])}
+                                        onChange={(e) =>
+                                            update(i, { [f]: e.target.value })
+                                        }
+                                    />
+                                </Field>
+                            ))}
                         {cfg.listField && (
                             <div className="sm:col-span-2">
                                 <Field label="Instructions">
@@ -519,15 +537,15 @@ function InvestigationsEditor({ data, consultationId, onSaved, onCancel }) {
     );
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
-const [rootRef, focusLast] = useFocusNewRow();
+    const [rootRef, focusLast] = useFocusNewRow();
     const updateInv = (i, patch) =>
         setRows((r) =>
             r.map((row, idx) => (idx === i ? { ...row, ...patch } : row)),
         );
-const addInv = () => {
-    focusLast("[data-inv]");
-    setRows((r) => [...r, { name: "", date: "", readings: [] }]);
-};
+    const addInv = () => {
+        focusLast("[data-inv]");
+        setRows((r) => [...r, { name: "", date: "", readings: [] }]);
+    };
     const removeInv = (i) => setRows((r) => r.filter((_, idx) => idx !== i));
     const updateReading = (i, j, patch) =>
         setRows((r) =>
@@ -542,28 +560,29 @@ const addInv = () => {
                     : row,
             ),
         );
-const addReading = (i) => {
-    focusLast(`[data-inv="${i}"] [data-reading]`);
-    setRows((r) =>
-        r.map((row, idx) =>
-            idx === i
-                ? {
-                      ...row,
-                      readings: [
-                          ...row.readings,
-                          {
-                              investigation_name: "",
-                              result: "",
-                              unit: "",
-                              interpretation: "",
-                              notes: "",
-                          },
-                      ],
-                  }
-                : row,
-        ),
-    );
-};    const removeReading = (i, j) =>
+    const addReading = (i) => {
+        focusLast(`[data-inv="${i}"] [data-reading]`);
+        setRows((r) =>
+            r.map((row, idx) =>
+                idx === i
+                    ? {
+                          ...row,
+                          readings: [
+                              ...row.readings,
+                              {
+                                  investigation_name: "",
+                                  result: "",
+                                  unit: "",
+                                  interpretation: "",
+                                  notes: "",
+                              },
+                          ],
+                      }
+                    : row,
+            ),
+        );
+    };
+    const removeReading = (i, j) =>
         setRows((r) =>
             r.map((row, idx) =>
                 idx === i

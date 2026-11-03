@@ -389,7 +389,16 @@ export default function ResultView({ result, onReset }) {
                     allergies={data.allergies}
                     rx={rx}
                     canEdit={canEdit}
-                    hasTranscript={!!result?.transcript}
+                    hasTranscript={
+                        !!result?.transcript ||
+                        [
+                            data.investigation_history,
+                            data.system_review,
+                            data.conditions,
+                            data.medication_history,
+                            data.prescription?.symptoms,
+                        ].some((l) => Array.isArray(l) && l.length > 0)
+                    }
                     onChange={applySuggestion}
                 />
                 {/* {!isEmptyValue(data.consultation_summary) && (
