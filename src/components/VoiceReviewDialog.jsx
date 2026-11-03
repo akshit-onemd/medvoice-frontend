@@ -165,7 +165,9 @@ export default function VoiceReviewDialog({
     // Medicines: the doctor must pick a brand (or keep generic) before a generic-only medicine is applied
     const [medFix, setMedFix] = useState({}); // id -> { name, brand }
     const [openPick, setOpenPick] = useState(() => new Set());
-    const isMed = (it) => it.m.path === "prescription.medications";
+    const isMed = (it) =>
+        it.m.path === "prescription.medications" ||
+        it.m.path === "medication_history";
     const rowOf = (it) =>
         medFix[it.id] ? { ...it.row, ...medFix[it.id] } : it.row;
     const needsBrand = (it) =>
