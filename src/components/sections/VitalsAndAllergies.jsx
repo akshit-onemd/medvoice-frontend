@@ -1,8 +1,15 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Activity, ShieldAlert } from "lucide-react";
-import { SectionCard, EmptyNote, CodeRow, usableList } from "./shared";
+import {
+    SectionCard,
+    EmptyNote,
+    CodeRow,
+    usableList,
+    ShowCodesContext,
+} from "./shared";
 export function VitalsCard({ vitals }) {
     const list = usableList(vitals).filter((v) => v.value);
+    const showCodes = useContext(ShowCodesContext);
 
     return (
         <SectionCard icon={Activity} title="Vitals" count={list.length}>
@@ -19,7 +26,7 @@ export function VitalsCard({ vitals }) {
                         >
                             <p className="text-sm leading-snug">
                                 {v.name}
-                                {v.loinc_code && (
+                                {showCodes && v.loinc_code && (
                                     <span className="font-mono ml-1 opacity-60">
                                         · {v.loinc_code}
                                     </span>

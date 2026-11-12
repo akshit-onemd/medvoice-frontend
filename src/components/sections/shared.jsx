@@ -95,10 +95,13 @@ export function Chip({ children }) {
     );
 }
 export const CodeReviewContext = createContext(null);
+// False when the doctor turned codes off in Settings. Every code chip checks it.
+export const ShowCodesContext = createContext(true);
 
 export function CodeTag({ system, code, term, verified, corrected }) {
     const ctx = useContext(CodeReviewContext);
-    if (!code) return null;
+    const show = useContext(ShowCodesContext);
+    if (!code || !show) return null;
     const info = ctx?.lookup(system, code);
     const review = info?.status === "review";
     const sure = info?.status === "verified" || info?.status === "confirmed";
@@ -151,7 +154,8 @@ export function CodeTag({ system, code, term, verified, corrected }) {
 }
 
 export function CodeRow({ codes }) {
-    const visible = codes.filter((c) => c.code);
+    const show = useContext(ShowCodesContext);
+    const visible = show ? codes.filter((c) => c.code) : [];
     if (visible.length === 0) return null;
     return (
         <div className="flex flex-wrap mt-1.5">

@@ -1,7 +1,14 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Pill, FlaskConical } from "lucide-react";
 import { medLines } from "../../utils/brandDisplay";
-import { SectionCard, EmptyNote, MetaRow, Chip, usableList } from "./shared";
+import {
+    SectionCard,
+    EmptyNote,
+    MetaRow,
+    Chip,
+    usableList,
+    ShowCodesContext,
+} from "./shared";
 const STATUS_TONE = {
     active: "bg-clinical-50 text-clinical-600",
     ongoing: "bg-clinical-50 text-clinical-600",
@@ -74,6 +81,7 @@ export function MedicationsCard({ medications }) {
 
 export function InvestigationsCard({ investigations }) {
     const list = usableList(investigations);
+    const showCodes = useContext(ShowCodesContext);
 
     return (
         <SectionCard
@@ -117,38 +125,42 @@ export function InvestigationsCard({ investigations }) {
                                                 >
                                                     <span className="text-ink">
                                                         {r.investigation_name}
-                                                        {r.loinc_code && (
-                                                            <span
-                                                                className="font-mono ml-1"
-                                                                style={{
-                                                                    color: r.loinc_code_corrected
-                                                                        ? "#B8823C"
-                                                                        : r.loinc_code_verified ===
-                                                                            false
-                                                                          ? "#A8453C"
-                                                                          : "#5C6B67",
-                                                                    opacity:
-                                                                        r.loinc_code_verified ===
-                                                                            true &&
-                                                                        !r.loinc_code_corrected
-                                                                            ? 0.6
-                                                                            : 1,
-                                                                }}
-                                                                title={
-                                                                    r.loinc_code_corrected
-                                                                        ? "Auto-corrected via UMLS"
-                                                                        : r.loinc_code_verified ===
-                                                                            false
-                                                                          ? "Not found in UMLS"
-                                                                          : r.loinc_code_verified ===
-                                                                              true
-                                                                            ? "Verified in UMLS"
-                                                                            : "Not yet verified"
-                                                                }
-                                                            >
-                                                                · {r.loinc_code}
-                                                            </span>
-                                                        )}
+                                                        {showCodes &&
+                                                            r.loinc_code && (
+                                                                <span
+                                                                    className="font-mono ml-1"
+                                                                    style={{
+                                                                        color: r.loinc_code_corrected
+                                                                            ? "#B8823C"
+                                                                            : r.loinc_code_verified ===
+                                                                                false
+                                                                              ? "#A8453C"
+                                                                              : "#5C6B67",
+                                                                        opacity:
+                                                                            r.loinc_code_verified ===
+                                                                                true &&
+                                                                            !r.loinc_code_corrected
+                                                                                ? 0.6
+                                                                                : 1,
+                                                                    }}
+                                                                    title={
+                                                                        r.loinc_code_corrected
+                                                                            ? "Auto-corrected via UMLS"
+                                                                            : r.loinc_code_verified ===
+                                                                                false
+                                                                              ? "Not found in UMLS"
+                                                                              : r.loinc_code_verified ===
+                                                                                  true
+                                                                                ? "Verified in UMLS"
+                                                                                : "Not yet verified"
+                                                                    }
+                                                                >
+                                                                    ·{" "}
+                                                                    {
+                                                                        r.loinc_code
+                                                                    }
+                                                                </span>
+                                                            )}
                                                     </span>
                                                     <span className="text-muted text-right">
                                                         {r.result} {r.unit}

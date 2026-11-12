@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Users, Footprints, Home, FileText } from "lucide-react";
 import {
     SectionCard,
@@ -7,9 +7,11 @@ import {
     Chip,
     CodeRow,
     usableList,
+    ShowCodesContext,
 } from "./shared";
 export function FamilyHistoryCard({ familyHistory }) {
     const list = usableList(familyHistory);
+    const showCodes = useContext(ShowCodesContext);
 
     return (
         <SectionCard icon={Users} title="Family History" count={list.length}>
@@ -66,59 +68,64 @@ export function FamilyHistoryCard({ familyHistory }) {
                                                     className="inline-flex items-center mr-1.5 mb-1.5"
                                                 >
                                                     <Chip>{ill}</Chip>
-                                                    {(snomedCode ||
-                                                        icd10Code) && (
-                                                        <span className="text-[10px] font-mono -ml-1 space-x-1">
-                                                            (
-                                                            {snomedCode && (
-                                                                <span
-                                                                    style={codeStyle(
-                                                                        snomedVerified,
-                                                                        f
-                                                                            .snomed_ct_codes_corrected?.[
-                                                                            ii
-                                                                        ],
-                                                                    )}
-                                                                    title={codeTitle(
-                                                                        snomedVerified,
-                                                                        f
-                                                                            .snomed_ct_codes_corrected?.[
-                                                                            ii
-                                                                        ],
-                                                                    )}
-                                                                >
-                                                                    {snomedCode}
-                                                                </span>
-                                                            )}
-                                                            {snomedCode &&
-                                                                icd10Code && (
-                                                                    <span className="text-muted">
-                                                                        /
+                                                    {showCodes &&
+                                                        (snomedCode ||
+                                                            icd10Code) && (
+                                                            <span className="text-[10px] font-mono -ml-1 space-x-1">
+                                                                (
+                                                                {snomedCode && (
+                                                                    <span
+                                                                        style={codeStyle(
+                                                                            snomedVerified,
+                                                                            f
+                                                                                .snomed_ct_codes_corrected?.[
+                                                                                ii
+                                                                            ],
+                                                                        )}
+                                                                        title={codeTitle(
+                                                                            snomedVerified,
+                                                                            f
+                                                                                .snomed_ct_codes_corrected?.[
+                                                                                ii
+                                                                            ],
+                                                                        )}
+                                                                    >
+                                                                        {
+                                                                            snomedCode
+                                                                        }
                                                                     </span>
                                                                 )}
-                                                            {icd10Code && (
-                                                                <span
-                                                                    style={codeStyle(
-                                                                        icd10Verified,
-                                                                        f
-                                                                            .icd10_codes_corrected?.[
-                                                                            ii
-                                                                        ],
+                                                                {snomedCode &&
+                                                                    icd10Code && (
+                                                                        <span className="text-muted">
+                                                                            /
+                                                                        </span>
                                                                     )}
-                                                                    title={codeTitle(
-                                                                        icd10Verified,
-                                                                        f
-                                                                            .icd10_codes_corrected?.[
-                                                                            ii
-                                                                        ],
-                                                                    )}
-                                                                >
-                                                                    {icd10Code}
-                                                                </span>
-                                                            )}
-                                                            )
-                                                        </span>
-                                                    )}
+                                                                {icd10Code && (
+                                                                    <span
+                                                                        style={codeStyle(
+                                                                            icd10Verified,
+                                                                            f
+                                                                                .icd10_codes_corrected?.[
+                                                                                ii
+                                                                            ],
+                                                                        )}
+                                                                        title={codeTitle(
+                                                                            icd10Verified,
+                                                                            f
+                                                                                .icd10_codes_corrected?.[
+                                                                                ii
+                                                                            ],
+                                                                        )}
+                                                                    >
+                                                                        {
+                                                                            icd10Code
+                                                                        }
+                                                                    </span>
+                                                                )}
+                                                                )
+                                                            </span>
+                                                        )}
                                                 </span>
                                             );
                                         })}

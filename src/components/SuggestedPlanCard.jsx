@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Sparkles, ChevronDown } from "lucide-react";
+import { Sparkles, ChevronDown, Loader2 } from "lucide-react";
 import BrandRow from "./BrandRow";
 import MedicinePicker from "./MedicineSearch";
 import {
@@ -10,6 +10,7 @@ import {
     setBrandFavourite,
 } from "../api/processAudio";
 import { allergyHit } from "../utils/allergyCheck";
+import { planPending } from "../utils/backgroundFill";
 
 const norm = (s) =>
     String(s || "")
@@ -111,13 +112,17 @@ function MedChoice({
 
 export default function SuggestedPlanCard({
     consultationId,
-    plan,
+    plan: planIn,
     allergies,
     rx,
     canEdit,
     hasTranscript,
     onChange,
 }) {
+    // Still being prepared right after the upload. A plan stuck for minutes counts as none,
+    // so the doctor can ask for one.
+    const preparing = planPending({ suggested_plan: planIn });
+    const plan = planIn?.status === "generating" ? null : planIn;
     const [selected, setSelected] = useState(new Set());
     const [busy, setBusy] = useState("");
     const [error, setError] = useState("");
@@ -215,6 +220,21 @@ export default function SuggestedPlanCard({
             /* the star is a convenience. Ignore a failure. */
         }
     };
+
+    if (preparing) {
+        return (
+            <div
+                role="status"
+                className="mb-5 flex items-center gap-2 rounded-md border border-dashed border-clinical-500 bg-surface px-5 py-3 text-sm text-muted shadow-panel"
+            >
+                <Loader2
+                    size={14}
+                    className="shrink-0 animate-spin text-clinical-600"
+                />
+                Preparing the AI suggested plan…
+            </div>
+        );
+    }
 
     // ---- no suggestion yet ----
     if (!plan) {

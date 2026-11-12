@@ -226,6 +226,17 @@ export async function saveLetterhead({ image_data, top_pct, bottom_pct }) {
     doctorProfileCache = body.profile; // keeps the cached profile (used by PDF downloads) current
     return body.profile;
 }
+export async function saveDoctorSettings(settings) {
+    const res = await authFetch(`${API_BASE_URL}/doctor/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "Couldn't save the setting");
+    doctorProfileCache = body.profile;
+    return body.profile;
+}
 export async function getMe() {
     const res = await authFetch(`${API_BASE_URL}/me`);
     if (!res.ok) throw new Error("Couldn't load your account");
