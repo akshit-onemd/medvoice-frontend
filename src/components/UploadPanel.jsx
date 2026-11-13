@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import LiveWaveform from "./LiveWaveform";
+import TemplatePicker from "./TemplatePicker";
 import AudioPlayer from "./AudioPlayer";
 import { downsample, decodePeaks } from "../utils/audioPeaks";
 import { useDirtyFlag } from "../hooks/useDirty";
@@ -54,6 +55,9 @@ function formatDuration(seconds) {
     return `${m}:${s}`;
 }
 
+const ATTACH_TILE =
+    "flex w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-line bg-paper px-2 py-4 text-center text-sm font-medium text-ink transition-colors hover:border-clinical-200 hover:bg-clinical-50 hover:text-clinical-600";
+
 export default function UploadPanel({
     onSubmit,
     onViewDetails,
@@ -92,6 +96,7 @@ export default function UploadPanel({
     const [creatingPatient, setCreatingPatient] = useState(false);
     const [createError, setCreateError] = useState("");
     const [sttProvider, setSttProvider] = useState("elevenlabs");
+    const [templateId, setTemplateId] = useState("");
     const [searchedFor, setSearchedFor] = useState("");
     const [fileLabel, setFileLabel] = useState("");
     const [isPaused, setIsPaused] = useState(false);
@@ -503,7 +508,13 @@ export default function UploadPanel({
             );
             return;
         }
-        onSubmit(file, attachments, { id: selectedPatient.id }, sttProvider);
+        onSubmit(
+            file,
+            attachments,
+            { id: selectedPatient.id },
+            sttProvider,
+            templateId,
+        );
     };
     const q = patientQuery.trim();
     const showAddPrompt =
@@ -528,8 +539,15 @@ export default function UploadPanel({
         },
     });
     return (
-        <div className="w-full max-w-2xl mx-auto">
-            <div className="bg-surface border border-line rounded-md shadow-panel p-6">
+        <div className="w-full max-w-3xl mx-auto">
+            <div className="mb-5">
+                <h1 className="page-title">New visit</h1>
+                <p className="mt-1 text-sm text-muted">
+                    Choose a patient, record the consultation, and get a
+                    structured summary.
+                </p>
+            </div>
+            <div className="bg-surface border border-line rounded-md shadow-panel p-5 sm:p-7">
                 {draft.note && (
                     <div className="mb-4 flex items-start gap-3 rounded border border-clinical-500 bg-clinical-50 px-3 py-2.5 text-sm text-ink">
                         <RotateCcw
@@ -556,14 +574,12 @@ export default function UploadPanel({
                     </div>
                 )}
                 <div className="mb-6 pb-6 border-b border-line">
-                    {/* <h2 className="font-serif text-xl text-ink mb-4">
-                        Patient
-                    </h2> */}
+                    <h2 className="group-label mb-2.5">Patient</h2>
 
                     {selectedPatient ? (
-                        <div className="flex items-center gap-3 rounded border border-clinical-500 bg-clinical-50 px-4 py-3">
+                        <div className="flex items-center gap-3 rounded-lg border border-clinical-200 bg-clinical-50 px-4 py-3.5">
                             <div className="flex-1">
-                                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-base text-ink">
+                                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-base font-semibold text-ink">
                                     {selectedPatient.name}
                                     <ConsentBadge
                                         status={consent}
@@ -629,11 +645,11 @@ export default function UploadPanel({
                             <SearchInput
                                 value={patientQuery}
                                 onChange={setPatientQuery}
-                                placeholder="Search or Add patient "
+                                placeholder="Search or add a patient"
                                 autoFocus
                                 disabled={isRecording}
                                 searching={searchingPatient}
-                                inputClassName="w-full rounded border border-line bg-paper px-3 py-2 text-lg text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
+                                inputClassName="w-full rounded-lg border border-line bg-surface px-3 py-3 text-base text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
                             />
                             {patientResults.length > 0 && (
                                 <>
@@ -714,22 +730,24 @@ export default function UploadPanel({
                     <select
                         value={sttProvider}
                         onChange={(e) => setSttProvider(e.target.value)}
-                        className="rounded border border-line bg-paper px-3 py-1.5 text-sm text-ink focus:border-clinical-500 outline-none"
+                        className="rounded border border-line bg-surface px-3 py-1.5 text-sm text-ink focus:border-clinical-500 outline-none"
                     >
                         <option value="whisper">Whisper</option>
                         <option value="sarvam">Sarvam</option>
                         <option value="elevenlabs">ElevenLabs</option>
                     </select>
                 </div> */}
-                {/* <h2 className="font-serif text-lg text-ink mb-4">
+                {/* <h2 className="font-display text-lg text-ink mb-4">
                     add a consultation recording
                 </h2> */}
                 {/* <p className="text-sm text-muted mb-6">
                     Upload an audio file, or record the conversation directly in
                     your browser.
                 </p> */}
+                <h2 className="group-label mb-2.5">Consultation</h2>
+                <TemplatePicker value={templateId} onChange={setTemplateId} />
                 {isRecording && (
-                    <div className="relative mb-4 rounded-md border border-line bg-paper px-3 py-3">
+                    <div className="relative mb-4 rounded-lg border border-line bg-paper px-3 py-3">
                         <LiveWaveform
                             stream={recStream}
                             peaksRef={peaksRef}
@@ -749,16 +767,16 @@ export default function UploadPanel({
                                 type="button"
                                 onClick={startRecording}
                                 disabled={!hasPatient}
-                                className="flex-[7] inline-flex items-center justify-center gap-2.5 rounded-lg bg-red-600 text-white px-5 py-3 text-base font-semibold shadow-sm hover:bg-red-700 active:bg-red-800 transition-colors disabled:hover:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-600"
+                                className="flex-[7] inline-flex items-center justify-center gap-2.5 whitespace-nowrap rounded-xl bg-red-600 text-white px-4 py-4 text-base sm:text-lg font-semibold shadow-record hover:bg-red-700 active:bg-red-800 transition-colors disabled:bg-red-600/50 disabled:text-white disabled:shadow-none disabled:cursor-not-allowed"
                             >
-                                <Mic size={26} strokeWidth={2} />
-                                Start
+                                <Mic size={24} strokeWidth={2} />
+                                Start recording
                             </button>
                         ) : (
                             <button
                                 type="button"
                                 onClick={stopRecording}
-                                className="flex-[7] inline-flex items-center justify-center gap-2.5 rounded-lg bg-red-600 text-white px-5 py-3 text-base font-semibold shadow-sm hover:bg-red-700 active:bg-red-800 transition-colors "
+                                className={`flex-[7] inline-flex items-center justify-center gap-2.5 whitespace-nowrap rounded-xl bg-red-600 text-white px-4 py-4 text-base sm:text-lg font-semibold tabular-nums hover:bg-red-700 active:bg-red-800 transition-colors ${isPaused ? "" : "record-live"}`}
                             >
                                 <Square
                                     size={22}
@@ -777,10 +795,10 @@ export default function UploadPanel({
                                         ? "Resume recording"
                                         : "Pause recording"
                                 }
-                                className={`flex-[2] inline-flex items-center justify-center gap-1.5 rounded-lg border px-5 py-3 text-base font-semibold transition-colors ${
+                                className={`flex-[2] inline-flex items-center justify-center gap-1.5 rounded-xl border px-5 py-4 text-base font-semibold transition-colors ${
                                     isPaused
                                         ? "border-clinical-500 bg-clinical-500 text-paper hover:bg-clinical-600"
-                                        : "border-line bg-paper text-ink hover:bg-clinical-50"
+                                        : "border-line bg-surface text-ink hover:bg-paper"
                                 }`}
                             >
                                 {isPaused ? (
@@ -799,10 +817,11 @@ export default function UploadPanel({
                                 type="button"
                                 onClick={triggerUpload}
                                 disabled={!hasPatient}
-                                className="flex-[3] inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-paper text-ink px-3 py-3 text-xs hover:bg-clinical-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-paper"
+                                className="flex-[3] inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface text-ink px-3 py-4 text-sm font-medium hover:bg-paper transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface"
                             >
                                 <UploadCloud size={18} strokeWidth={1.75} />
                                 Upload
+                                <span className="hidden sm:inline">audio</span>
                             </button>
                         )}
                         <input
@@ -832,47 +851,52 @@ export default function UploadPanel({
                         onRemove={clearFile}
                     />
                 )}
-                <div className="mt-6">
-                    <p className="text-base text-ink mb-2">
-                        Attach reports or prescriptions
+                <div className="mt-7 border-t border-line pt-6">
+                    <h2 className="group-label">
+                        Reports and old prescriptions
+                    </h2>
+                    <p className="mb-3 mt-0.5 text-xs text-muted">
+                        Optional. Anything you attach is read into the note.
                     </p>
-                    <label className="flex items-center gap-2 rounded border border-dashed border-line px-4 py-3 text-sm text-clinical-600 cursor-pointer hover:bg-paper">
-                        <Paperclip size={16} strokeWidth={1.75} />
-                        Add images or PDFs
-                        <input
-                            type="file"
-                            accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,application/pdf,.pdf"
-                            multiple
-                            className="hidden"
-                            onChange={(e) => {
-                                handleAttachments(e.target.files);
-                                e.target.value = "";
+                    <div className="grid grid-cols-3 gap-2.5">
+                        <label className={ATTACH_TILE}>
+                            <Paperclip size={20} strokeWidth={1.75} />
+                            Files
+                            <input
+                                type="file"
+                                accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,application/pdf,.pdf"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => {
+                                    handleAttachments(e.target.files);
+                                    e.target.value = "";
+                                }}
+                            />
+                        </label>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const phone =
+                                    window.matchMedia?.(
+                                        "(pointer: coarse)",
+                                    ).matches;
+                                if (phone) nativeCamRef.current?.click();
+                                else openCamera();
                             }}
-                        />
-                    </label>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            const phone =
-                                window.matchMedia?.(
-                                    "(pointer: coarse)",
-                                ).matches;
-                            if (phone) nativeCamRef.current?.click();
-                            else openCamera();
-                        }}
-                        className="flex items-center w-full gap-2 rounded border border-dashed border-line px-4 py-3 text-sm text-clinical-600 hover:bg-paper"
-                    >
-                        <Camera size={16} strokeWidth={1.75} />
-                        Camera
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setScanOpen(true)}
-                        className="flex w-full items-center gap-2 rounded border border-dashed border-line px-4 py-3 text-sm text-clinical-600 hover:bg-paper"
-                    >
-                        <ScanLine size={16} strokeWidth={1.75} />
-                        Scan pages
-                    </button>
+                            className={ATTACH_TILE}
+                        >
+                            <Camera size={20} strokeWidth={1.75} />
+                            Camera
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setScanOpen(true)}
+                            className={ATTACH_TILE}
+                        >
+                            <ScanLine size={20} strokeWidth={1.75} />
+                            Scan pages
+                        </button>
+                    </div>
                     <input
                         ref={nativeCamRef}
                         type="file"
@@ -994,7 +1018,7 @@ export default function UploadPanel({
                         (!file && attachments.length === 0) ||
                         !consentOk
                     }
-                    className="mt-6 flex w-full items-center justify-center gap-2 rounded bg-clinical-500 text-paper py-3 text-base font-medium hover:bg-clinical-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-clinical-500 text-white py-3.5 text-base font-semibold hover:bg-clinical-600 disabled:bg-line disabled:text-muted disabled:cursor-not-allowed transition-colors"
                 >
                     <Sparkles size={18} strokeWidth={1.75} />
                     Generate summary

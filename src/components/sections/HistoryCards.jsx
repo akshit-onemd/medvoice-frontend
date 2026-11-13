@@ -9,12 +9,12 @@ import {
     usableList,
     ShowCodesContext,
 } from "./shared";
-export function FamilyHistoryCard({ familyHistory }) {
+export function FamilyHistoryCard({ familyHistory, title = "Family History" }) {
     const list = usableList(familyHistory);
     const showCodes = useContext(ShowCodesContext);
 
     return (
-        <SectionCard icon={Users} title="Family History" count={list.length}>
+        <SectionCard icon={Users} title={title} count={list.length}>
             {list.length === 0 ? (
                 <EmptyNote>No family history was discussed.</EmptyNote>
             ) : (
@@ -144,13 +144,13 @@ export function FamilyHistoryCard({ familyHistory }) {
     );
 }
 
-export function LifestyleCard({ lifestyle }) {
+export function LifestyleCard({ lifestyle, title = "Lifestyle Habits" }) {
     const list = usableList(lifestyle);
 
     return (
         <SectionCard
             icon={Footprints}
-            title="Lifestyle Habits"
+            title={title}
             count={list.length}
         >
             {list.length === 0 ? (
@@ -193,11 +193,11 @@ export function LifestyleCard({ lifestyle }) {
     );
 }
 
-export function SocialHistoryCard({ socialHistory }) {
+export function SocialHistoryCard({ socialHistory, title = "Social History" }) {
     const list = usableList(socialHistory);
 
     return (
-        <SectionCard icon={Home} title="Social History" count={list.length}>
+        <SectionCard icon={Home} title={title} count={list.length}>
             {list.length === 0 ? (
                 <EmptyNote>No social history was recorded.</EmptyNote>
             ) : (
@@ -230,12 +230,12 @@ export function SocialHistoryCard({ socialHistory }) {
     );
 }
 
-export function OtherHistoryCard({ otherHistory }) {
+export function OtherHistoryCard({ otherHistory, title = "Other Notes" }) {
     const list = usableList(otherHistory);
     if (list.length === 0) return null;
 
     return (
-        <SectionCard icon={FileText} title="Other Notes" count={list.length}>
+        <SectionCard icon={FileText} title={title} count={list.length}>
             <ul className="space-y-2.5">
                 {list.map((o, i) => (
                     <li key={i}>

@@ -7,7 +7,7 @@ import { medLines } from "../utils/brandDisplay";
 const SEARCH_CACHE = new Map();
 
 const inputCls =
-    "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
+    "w-full rounded border border-line bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 
 // Search the medicine database by brand OR generic name.
 // onPick({ name: "Metformin 500 mg", brand: "Glycomet 500" })

@@ -84,7 +84,7 @@ export default function BillDialog({ consultationId, onClose }) {
                     <div>
                         <h2
                             id="bill-dialog-title"
-                            className="font-serif text-lg text-ink"
+                            className="font-display text-lg text-ink"
                         >
                             {step === "done" ? "Bill ready" : "Create bill"}
                         </h2>

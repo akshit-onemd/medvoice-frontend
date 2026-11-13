@@ -87,7 +87,7 @@ export default function ConsentRecordDialog({ patient, onClose, onRecord }) {
             >
                 <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                        <h2 className="font-serif text-xl text-ink">Consent</h2>
+                        <h2 className="font-display text-xl text-ink">Consent</h2>
                         <p className="text-sm text-muted">{patient.name}</p>
                     </div>
                     <button
@@ -135,7 +135,7 @@ export default function ConsentRecordDialog({ patient, onClose, onRecord }) {
 
                         {g ? (
                             <section>
-                                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
+                                <p className="mb-1 group-label">
                                     Latest agreement
                                 </p>
                                 <dl className="divide-y divide-line">
@@ -248,7 +248,7 @@ export default function ConsentRecordDialog({ patient, onClose, onRecord }) {
 
                         {rec.history?.length > 1 && (
                             <section className="mt-4">
-                                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
+                                <p className="mb-1 group-label">
                                     History
                                 </p>
                                 <ul className="divide-y divide-line text-sm">

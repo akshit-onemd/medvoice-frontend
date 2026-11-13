@@ -8,11 +8,11 @@ import {
     CodeRow,
     usableList,
 } from "./shared";
-export function ConditionsCard({ conditions }) {
+export function ConditionsCard({ conditions, title = "Conditions" }) {
     const list = usableList(conditions);
 
     return (
-        <SectionCard icon={HeartPulse} title="Conditions" count={list.length}>
+        <SectionCard icon={HeartPulse} title={title} count={list.length}>
             {list.length === 0 ? (
                 <EmptyNote>No conditions were noted.</EmptyNote>
             ) : (
@@ -59,11 +59,11 @@ export function ConditionsCard({ conditions }) {
     );
 }
 
-export function ProceduresCard({ procedures }) {
+export function ProceduresCard({ procedures, title = "Procedures" }) {
     const list = usableList(procedures);
 
     return (
-        <SectionCard icon={Scissors} title="Procedures" count={list.length}>
+        <SectionCard icon={Scissors} title={title} count={list.length}>
             {list.length === 0 ? (
                 <EmptyNote>No procedures were mentioned.</EmptyNote>
             ) : (
@@ -109,13 +109,13 @@ export function ProceduresCard({ procedures }) {
     );
 }
 
-export function SystemReviewCard({ systemReview }) {
+export function SystemReviewCard({ systemReview, title = "Review of Systems" }) {
     const list = usableList(systemReview);
 
     return (
         <SectionCard
             icon={ClipboardList}
-            title="Review of Systems"
+            title={title}
             count={list.length}
         >
             {list.length === 0 ? (

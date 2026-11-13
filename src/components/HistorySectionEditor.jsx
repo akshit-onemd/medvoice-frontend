@@ -4,7 +4,7 @@ import { updateSection } from "../api/processAudio";
 import useFocusNewRow from "../hooks/useFocusNewRow";
 import { MedicineField } from "./MedicineSearch";
 const inputCls =
-    "w-full rounded border border-line px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
+    "w-full rounded border border-line px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 const s = (v) => (v === null || v === undefined ? "" : String(v));
 function Field({ label, children }) {
     return (
@@ -205,7 +205,7 @@ function SimpleListEditor({
             className="bg-surface border border-line rounded-md shadow-panel px-6 py-5"
         >
             <div className="flex items-center justify-between mb-4">
-                <h2 className="font-serif text-lg text-ink">
+                <h2 className="font-display text-lg text-ink">
                     Edit {cfg.label.toLowerCase()}s
                 </h2>
                 <AddButton
@@ -296,7 +296,7 @@ function VitalsEditor({ data, consultationId, onSaved, onCancel }) {
     };
     return (
         <div className="bg-surface border border-line rounded-md shadow-panel px-6 py-5">
-            <h2 className="font-serif text-lg text-ink mb-4">Edit vitals</h2>
+            <h2 className="font-display text-lg text-ink mb-4">Edit vitals</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                 {rows.map((v, i) => (
                     <Field
@@ -368,7 +368,7 @@ function FamilyHistoryEditor({ data, consultationId, onSaved, onCancel }) {
             className="bg-surface border border-line rounded-md shadow-panel px-6 py-5"
         >
             <div className="flex items-center justify-between mb-4">
-                <h2 className="font-serif text-lg text-ink">
+                <h2 className="font-display text-lg text-ink">
                     Edit family history
                 </h2>
                 <AddButton label="Add relative" onAdd={add} />
@@ -468,7 +468,7 @@ function SystemReviewEditor({ data, consultationId, onSaved, onCancel }) {
             className="bg-surface border border-line rounded-md shadow-panel px-6 py-5"
         >
             <div className="flex items-center justify-between mb-4">
-                <h2 className="font-serif text-lg text-ink">
+                <h2 className="font-display text-lg text-ink">
                     Edit system review
                 </h2>
                 <AddButton label="Add system" onAdd={add} />
@@ -618,7 +618,7 @@ function InvestigationsEditor({ data, consultationId, onSaved, onCancel }) {
             className="bg-surface border border-line rounded-md shadow-panel px-6 py-5"
         >
             <div className="flex items-center justify-between mb-4">
-                <h2 className="font-serif text-lg text-ink">
+                <h2 className="font-display text-lg text-ink">
                     Edit investigations
                 </h2>
                 <AddButton label="Add investigation" onAdd={addInv} />

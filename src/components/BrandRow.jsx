@@ -11,7 +11,7 @@ export default function BrandRow({
     if (!info?.brands?.length) return null;
     return (
         <div className="flex flex-wrap items-center gap-1.5 pb-2.5 pl-9 pr-3">
-            <span className="text-[11px] uppercase tracking-wide text-muted">
+            <span className="group-label">
                 Brands
             </span>
             {info.brands.map((b) => {

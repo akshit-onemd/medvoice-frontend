@@ -9,7 +9,7 @@ const tmpId = () => `tmp-${Date.now()}-${++tmpN}`; // server swaps in a real id 
 
 const NUM = /^\d+(\.\d{1,2})?$/;
 const fieldCls =
-    "w-full rounded border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted outline-none focus:border-clinical-500";
+    "w-full rounded border border-line bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-muted outline-none focus:border-clinical-500";
 const BLANK = { name: "", description: "", fee: "", qty: "1", tax_id: "" };
 
 export default function ServicePicker({
@@ -242,7 +242,7 @@ export default function ServicePicker({
                         setActive(0);
                     }}
                     onKeyDown={onKeyDown}
-                    className="w-full rounded border border-line bg-paper py-2 pl-9 pr-9 text-sm text-ink placeholder:text-muted outline-none focus:border-clinical-500 disabled:opacity-50"
+                    className="w-full rounded border border-line bg-surface py-2.5 pl-9 pr-9 text-sm text-ink placeholder:text-muted outline-none focus:border-clinical-500 disabled:opacity-50"
                 />
                 {query && (
                     <button

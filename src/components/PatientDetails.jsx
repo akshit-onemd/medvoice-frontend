@@ -35,7 +35,7 @@ function Section({ title, rows }) {
     if (!shown.length) return null;
     return (
         <section className="mt-4 first:mt-0">
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
+            <p className="mb-1 group-label">
                 {title}
             </p>
             <dl className="divide-y divide-line">
@@ -232,7 +232,7 @@ export default function PatientDetails({
             ))}
             {consent && (
                 <section className="mt-4">
-                    <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
+                    <p className="mb-1 group-label">
                         Consent
                     </p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5">
@@ -321,7 +321,7 @@ export function PatientDetailsDialog({
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="mb-3 flex items-start justify-between gap-3">
-                    <h2 className="font-serif text-xl text-ink">
+                    <h2 className="font-display text-xl text-ink">
                         Patient details
                     </h2>
                     <button

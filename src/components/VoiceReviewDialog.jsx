@@ -5,6 +5,7 @@ import { useDirtyFlag } from "../hooks/useDirty";
 import MedicinePicker from "./MedicineSearch";
 import ConfirmDialog from "./ConfirmDialog";
 import { medLines } from "../utils/brandDisplay";
+import { linesOf } from "../templates/general";
 
 const arr = (v) => (Array.isArray(v) ? v : []);
 const dash = (parts) => parts.filter(Boolean).join(" · ");
@@ -119,6 +120,7 @@ export default function VoiceReviewDialog({
     consultationId,
     result,
     doc,
+    template,
     editorOpen,
     onApplied,
     onClose: closeNow,
@@ -130,7 +132,8 @@ export default function VoiceReviewDialog({
     const [askDiscard, setAskDiscard] = useState(false);
     const onClose = () => {
         if (busy || askDiscard) return;
-        const empty = items.length === 0 && edits.length === 0;
+        const empty =
+            items.length === 0 && edits.length === 0 && customItems.length === 0;
         if (empty) closeNow();
         else setAskDiscard(true);
     };
@@ -156,6 +159,29 @@ export default function VoiceReviewDialog({
     // Changes to values already in the record
     const edits = result.edits || [];
 
+    // The template's own sections the doctor spoke about
+    const customItems = useMemo(
+        () =>
+            Object.entries(result.rows?.custom || {})
+                .map(([sid, v]) => {
+                    const s = arr(template?.sections).find((x) => x.id === sid);
+                    return s ? { id: `custom:${sid}`, sid, s, v, lines: linesOf(s, v) } : null;
+                })
+                .filter((c) => c && c.lines.length),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [result],
+    );
+    const [customSel, setCustomSel] = useState(
+        () => new Set(Object.keys(result.rows?.custom || {})),
+    );
+    const toggleCustom = (sid) =>
+        setCustomSel((s) => {
+            const n = new Set(s);
+            if (n.has(sid)) n.delete(sid);
+            else n.add(sid);
+            return n;
+        });
+
     const [selected, setSelected] = useState(
         () => new Set(items.filter((i) => !i.tag).map((i) => i.id)),
     );
@@ -177,7 +203,10 @@ export default function VoiceReviewDialog({
         String(it.row.name || "").trim() !== "";
     const chosen = items.filter((i) => selected.has(i.id));
     const unresolved = chosen.filter(needsBrand).length;
-    const total = chosen.length + editSel.size;
+    const total =
+        chosen.length +
+        editSel.size +
+        customItems.filter((c) => customSel.has(c.sid)).length;
     const togglePick = (id) =>
         setOpenPick((s) => {
             const n = new Set(s);
@@ -224,6 +253,10 @@ export default function VoiceReviewDialog({
             (it) =>
                 selected.has(it.id) && pushPath(payload, it.m.path, rowOf(it)),
         );
+        const custom = Object.fromEntries(
+            customItems.filter((c) => customSel.has(c.sid)).map((c) => [c.sid, c.v]),
+        );
+        if (Object.keys(custom).length) payload.custom = custom;
         const sent = edits
             .filter((_, i) => editSel.has(i))
             .map((e) => ({
@@ -247,7 +280,8 @@ export default function VoiceReviewDialog({
 
     const heard = result.heard || "";
     const longHeard = heard.length > 140;
-    const nothing = items.length === 0 && edits.length === 0;
+    const nothing =
+        items.length === 0 && edits.length === 0 && customItems.length === 0;
 
     return (
         <div
@@ -269,7 +303,7 @@ export default function VoiceReviewDialog({
                     <div>
                         <h2
                             id="voice-review-title"
-                            className="font-serif text-lg text-ink"
+                            className="font-display text-lg text-ink"
                         >
                             Review what was heard
                         </h2>
@@ -326,7 +360,7 @@ export default function VoiceReviewDialog({
                         <>
                             {edits.length > 0 && (
                                 <div className="mt-4">
-                                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                                    <p className="group-label">
                                         Changes to existing values
                                     </p>
                                     <ul className="mt-1.5 divide-y divide-line overflow-hidden rounded border border-line">
@@ -378,12 +412,36 @@ export default function VoiceReviewDialog({
                                 </div>
                             )}
 
+                            {customItems.map((c) => (
+                                <div key={c.id} className="mt-4">
+                                    <p className="group-label">
+                                        {c.s.title}
+                                    </p>
+                                    <label className="mt-1.5 flex cursor-pointer items-start gap-3 rounded border border-line px-3 py-2.5 hover:bg-paper">
+                                        <input
+                                            type="checkbox"
+                                            className="mt-1"
+                                            checked={customSel.has(c.sid)}
+                                            disabled={busy}
+                                            onChange={() => toggleCustom(c.sid)}
+                                        />
+                                        <ul className="min-w-0 flex-1 space-y-0.5">
+                                            {c.lines.map((l, i) => (
+                                                <li key={i} className="text-sm text-ink">
+                                                    {l.label && <span className="text-muted">{l.label}: </span>}
+                                                    {l.text}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </label>
+                                </div>
+                            ))}
                             {META.map((m) => {
                                 const rows = items.filter((i) => i.m === m);
                                 if (!rows.length) return null;
                                 return (
                                     <div key={m.path} className="mt-4">
-                                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                                        <p className="group-label">
                                             {m.label}
                                         </p>
                                         <ul className="mt-1.5 divide-y divide-line overflow-hidden rounded border border-line">

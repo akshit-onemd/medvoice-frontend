@@ -6,7 +6,7 @@ export default function BrandMark({ size = 40 }) {
             src="/onemd-icon.png"
             alt="OneMD Scribe"
             style={{ width: size, height: size }}
-            className="rounded object-contain"
+            className="rounded-lg object-contain"
         />
     );
 }

@@ -7,7 +7,7 @@ import DraftBanner from "./DraftBanner";
 import useDraft from "../hooks/useDraft";
 
 const inputCls =
-    "w-full rounded border border-line px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
+    "w-full rounded border border-line px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 const blank = { id: null, name: "", description: "", active: true, items: [] };
 
 export default function BundleSettings({
@@ -199,7 +199,7 @@ useDirtyFlag(bundleDirty);
     return (
         <div>
             <DraftBanner draft={draft} />
-            <p className="mt-8 text-[11px] font-medium uppercase tracking-wide text-muted">
+            <p className="mt-8 group-label">
                 Bundles
             </p>
             <p className="mt-1 text-xs text-muted">

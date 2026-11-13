@@ -3,8 +3,9 @@ import { Plus, Trash2 } from "lucide-react";
 import { updatePrescription } from "../api/processAudio";
 import useFocusNewRow from "../hooks/useFocusNewRow";
 import { MedicineField } from "./MedicineSearch";
+import { SECTION_TYPES } from "../templates/sectionTypes";
 const inputCls =
-    "w-full rounded border border-line px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
+    "w-full rounded border border-line px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 const s = (v) => (v === null || v === undefined ? "" : String(v));
 const dosageText = (d) =>
     Array.isArray(d) ? d.map(s).filter(Boolean).join("; ") : s(d);
@@ -32,7 +33,7 @@ function Group({ id, title, addLabel, onAdd, children }) {
     return (
         <div className="mb-6" data-section={id}>
             <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted">
+                <h3 className="group-label">
                     {title}
                 </h3>
                 <button
@@ -74,12 +75,24 @@ function Row({ onRemove, voice, children }) {
         </div>
     );
 }
+// Default: every part. A template's parts leave the others out (their saved data is kept).
+const ALL_PARTS = ["complaints", "prescription", "diagnosis", "followup"].map(
+    (type) => ({ type, title: SECTION_TYPES[type].title }),
+);
+
 export default function PrescriptionEditor({
     consultationId,
     prescription,
     onSaved,
     onCancel,
+    parts = ALL_PARTS,
 }) {
+    const part = (type) => parts.find((p) => p.type === type);
+    // The editor's own heading, unless the template renamed the part
+    const titleOf = (type, editorTitle) => {
+        const t = part(type)?.title;
+        return t && t !== SECTION_TYPES[type].title ? t : editorTitle;
+    };
     const [form, setForm] = useState(() => toForm(prescription));
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
@@ -133,12 +146,13 @@ export default function PrescriptionEditor({
             ref={rootRef}
             className="bg-surface border border-line rounded-md shadow-panel px-6 py-5"
         >
-            <h2 className="font-serif text-lg text-ink mb-4">
+            <h2 className="font-display text-lg text-ink mb-4">
                 Edit prescription &amp; plan
             </h2>
+            {part("complaints") && (
             <Group
                 id="symptoms"
-                title="Symptoms / complaints"
+                title={titleOf("complaints", "Symptoms / complaints")}
                 addLabel="Add symptom"
                 onAdd={() =>
                     add("symptoms", { name: "", duration: "", notes: "" })
@@ -188,10 +202,12 @@ export default function PrescriptionEditor({
                     </Row>
                 ))}
             </Group>
+            )}
 
+            {part("prescription") && (
             <Group
                 id="medications"
-                title="Medications"
+                title={titleOf("prescription", "Medications")}
                 addLabel="Add medication"
                 onAdd={() =>
                     add("medications", {
@@ -253,10 +269,12 @@ export default function PrescriptionEditor({
                     </Row>
                 ))}
             </Group>
+            )}
 
+            {part("diagnosis") && (
             <Group
                 id="diagnosis"
-                title="Diagnosis"
+                title={titleOf("diagnosis", "Diagnosis")}
                 addLabel="Add diagnosis"
                 onAdd={() => add("diagnosis", { name: "" })}
             >
@@ -282,9 +300,11 @@ export default function PrescriptionEditor({
                     </Row>
                 ))}
             </Group>
+            )}
 
+            {part("followup") && (
             <Group
-                title="Follow up"
+                title={titleOf("followup", "Follow up")}
                 id="followup"
                 addLabel="Add follow up"
                 onAdd={() =>
@@ -340,6 +360,7 @@ export default function PrescriptionEditor({
                     </Row>
                 ))}
             </Group>
+            )}
 
             {error && <p className="mb-3 text-sm text-alert-500">{error}</p>}
 

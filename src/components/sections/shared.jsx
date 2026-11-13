@@ -36,7 +36,7 @@ export function SectionCard({
     const action = useContext(CardActionContext);
     return (
         <section className="bg-surface border border-line rounded-md shadow-panel">
-            <header className="flex items-center gap-3 px-6 py-4 border-b border-line">
+            <header className="flex items-center gap-3 px-4 pt-4 sm:px-6 sm:pt-5">
                 <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded ${
                         tone === "alert"
@@ -46,9 +46,9 @@ export function SectionCard({
                 >
                     <Icon size={16} strokeWidth={1.75} />
                 </div>
-                <h3 className="font-serif text-xl text-ink flex-1">{title}</h3>
+                <h3 className="font-display text-[17px] leading-snug text-ink flex-1">{title}</h3>
                 {typeof count === "number" && (
-                    <span className="text-xs text-muted tabular-nums">
+                    <span className="rounded-full bg-paper px-2 py-0.5 text-xs font-medium text-muted tabular-nums">
                         {count}
                     </span>
                 )}
@@ -58,13 +58,13 @@ export function SectionCard({
                         onClick={action.onEdit}
                         aria-label={`Edit ${action.label || title}`}
                         title="Edit"
-                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded border border-line bg-surface text-muted hover:bg-paper hover:text-ink transition-colors"
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted hover:bg-paper hover:text-ink transition-colors"
                     >
                         <Pencil size={14} strokeWidth={1.75} />
                     </button>
                 )}
             </header>
-            <div className="px-6 py-5">{children}</div>
+            <div className="px-4 pb-5 pt-3.5 sm:px-6">{children}</div>
         </section>
     );
 }
@@ -79,7 +79,7 @@ export function MetaRow({ items }) {
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
             {visible.map((item) => (
                 <span key={item.label} className="text-sm text-muted">
-                    {item.label}:
+                    {item.label}:{" "}
                     <span className="text-ink/80">{item.value}</span>
                 </span>
             ))}
@@ -89,7 +89,7 @@ export function MetaRow({ items }) {
 
 export function Chip({ children }) {
     return (
-        <span className="inline-block rounded bg-paper border border-line px-2 py-0.5 text-sm text-ink mr-1.5 mb-1.5">
+        <span className="inline-block rounded-full bg-paper border border-line px-2.5 py-0.5 text-sm text-ink mr-1.5 mb-1.5">
             {children}
         </span>
     );
@@ -109,11 +109,11 @@ export function CodeTag({ system, code, term, verified, corrected }) {
     const icon = review ? (
         <AlertTriangle size={10} strokeWidth={2.5} className="text-amber-700" />
     ) : sure ? (
-        <Check size={10} strokeWidth={2.5} className="text-clinical-600" />
+        <Check size={10} strokeWidth={2.5} className="text-ok-600" />
     ) : corrected ? (
         <RefreshCw size={10} strokeWidth={2.5} className="text-amber-400" />
     ) : verified === true ? (
-        <Check size={10} strokeWidth={2.5} className="text-clinical-600" />
+        <Check size={10} strokeWidth={2.5} className="text-ok-600" />
     ) : verified === false ? (
         <AlertTriangle size={10} strokeWidth={2.5} className="text-alert-500" />
     ) : (
@@ -174,8 +174,8 @@ export function CodeRow({ codes }) {
 }
 export function SummaryCard({ title, summary }) {
     return (
-        <div className="bg-surface border border-line rounded-md shadow-panel px-6 py-5">
-            <h2 className="font-serif text-xl text-ink mb-3">{title}</h2>
+        <div className="bg-surface border border-line rounded-md shadow-panel px-4 py-5 sm:px-6">
+            <h2 className="font-display text-[17px] text-ink mb-3">{title}</h2>
             <ul className="space-y-1.5">
                 {summary.map((line, i) => (
                     <li
@@ -212,7 +212,7 @@ export function AIOverviewCard({ overview, details, updating = false }) {
                       }
                     : undefined
             }
-            className={`bg-surface border border-line rounded-md shadow-panel px-6 py-5 ${
+            className={`bg-clinical-50 border border-clinical-100 rounded-md px-4 py-5 sm:px-6 ${
                 hasDetails ? "cursor-pointer select-none" : ""
             }`}
         >
@@ -222,7 +222,7 @@ export function AIOverviewCard({ overview, details, updating = false }) {
                     className="text-clinical-600"
                     strokeWidth={1.75}
                 />
-                <span className="text-xs font-medium uppercase tracking-wide text-clinical-600">
+                <span className="text-[13px] font-semibold text-clinical-600">
                     AI Overview
                 </span>
                 {updating && (
@@ -233,13 +233,13 @@ export function AIOverviewCard({ overview, details, updating = false }) {
                 )}
             </div>
             {overview && (
-                <p className="text-sm text-ink leading-relaxed mb-3">
+                <p className="text-[15px] text-ink leading-relaxed mb-3">
                     {overview}
                 </p>
             )}
 
             {expanded && hasDetails && (
-                <ul className="space-y-1.5 mb-3 pt-3 border-t border-line">
+                <ul className="space-y-1.5 mb-3 pt-3 border-t border-clinical-100">
                     {details.map((line, i) => (
                         <li
                             key={i}
@@ -255,7 +255,7 @@ export function AIOverviewCard({ overview, details, updating = false }) {
             )}
 
             {hasDetails && (
-                <span className="inline-flex items-center gap-1 text-xs text-clinical-600">
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-clinical-600">
                     {expanded ? "Show less" : "Show more"}
                     <ChevronDown
                         size={12}

@@ -95,6 +95,7 @@ export async function processAudio(
     sttProvider = "elevenlabs",
     onStageChange,
     retry = null, // { transcript, diarizedTranscript, language } from a failed run
+    templateId = "",
 ) {
     const formData = new FormData();
     if (retry?.transcript) {
@@ -108,6 +109,7 @@ export async function processAudio(
     attachments.forEach((att) => formData.append("attachments", att, att.name));
     formData.append("stt_provider", sttProvider);
     formData.append("patient_id", patientInfo.id);
+    if (templateId) formData.append("template_id", templateId);
 
     let cancelled = false;
     onStageChange?.(0);
@@ -236,6 +238,14 @@ export async function saveDoctorSettings(settings) {
     if (!res.ok) throw new Error(body.error || "Couldn't save the setting");
     doctorProfileCache = body.profile;
     return body.profile;
+}
+// One exact version of a template: { id, version, name, definition }
+export async function getTemplateVersion(id, version) {
+    const res = await authFetch(
+        `${API_BASE_URL}/templates/${encodeURIComponent(id)}/versions/${encodeURIComponent(version)}`,
+    );
+    if (!res.ok) throw new Error("Couldn't load the template");
+    return res.json();
 }
 export async function getMe() {
     const res = await authFetch(`${API_BASE_URL}/me`);
@@ -380,3 +390,34 @@ export const saveBrandPrefs = (ing_key, families) =>
     rcFetch("PUT", "/brand-prefs", { ing_key, families });
 export const setBrandFavourite = (ing_key, family, favourite) =>
     rcFetch("PUT", "/brand-prefs/favourite", { ing_key, family, favourite });
+
+// ---- templates ----
+export const listTemplates = () => rcFetch("GET", "/templates");
+export const getTemplate = (id) =>
+    rcFetch("GET", `/templates/${encodeURIComponent(id)}`);
+export const createTemplate = (definition) =>
+    rcFetch("POST", "/templates", { definition });
+export const updateTemplate = (id, definition) =>
+    rcFetch("PUT", `/templates/${encodeURIComponent(id)}`, { definition });
+export const deleteTemplate = (id) =>
+    rcFetch("DELETE", `/templates/${encodeURIComponent(id)}`);
+export const copyTemplate = (id) =>
+    rcFetch("POST", `/templates/${encodeURIComponent(id)}/copy`, {});
+export const setDefaultTemplate = (id) =>
+    saveDoctorSettings({ default_template_id: id });
+export const askTemplateBuilder = (messages, draft) =>
+    rcFetch("POST", "/templates/ai", { messages, draft });
+export const previewTemplate = (consultationId, definition) =>
+    rcFetch("POST", `/consultations/${consultationId}/template-preview`, {
+        definition,
+    });
+export const changeNoteTemplate = (consultationId, templateId) =>
+    rcFetch("POST", `/consultations/${consultationId}/retemplate`, {
+        template_id: templateId,
+    });
+export const saveCustomSection = (consultationId, sectionId, value) =>
+    rcFetch(
+        "PUT",
+        `/consultations/${consultationId}/custom/${encodeURIComponent(sectionId)}`,
+        { value },
+    );

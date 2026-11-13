@@ -10,7 +10,7 @@ const SIGNERS = [
 ];
 
 const input =
-    "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
+    "w-full rounded border border-line bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 
 // Full-screen, two steps: 1) read the notice  2) sign.
 // props: patient {id,name,age}, onDone(statusString), onCancel()
@@ -109,14 +109,14 @@ export default function ConsentFlow({ patient, onDone, onCancel }) {
 
     return (
         <div className="fixed inset-0 z-[70] overflow-y-auto bg-paper">
-            <div className="mx-auto w-full max-w-2xl px-4 pb-16 pt-6">
+            <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-6">
                 {/* header */}
                 <div className="mb-6 flex items-start justify-between gap-3">
                     <div>
                         <p className="text-xs text-muted">
                             Step {step} of 2 · {step === 1 ? "View" : "Sign"}
                         </p>
-                        <h2 className="font-serif text-xl text-ink">
+                        <h2 className="font-display text-xl text-ink">
                             Consent for {patient.name}
                         </h2>
                     </div>
@@ -141,7 +141,7 @@ export default function ConsentFlow({ patient, onDone, onCancel }) {
                 {done ? (
                     <div className="flex flex-col items-center gap-2 py-16 text-clinical-600">
                         <CheckCircle2 size={40} strokeWidth={1.5} />
-                        <p className="font-serif text-lg text-ink">Recorded</p>
+                        <p className="font-display text-lg text-ink">Recorded</p>
                     </div>
                 ) : loadError ? (
                     <div className="rounded border border-line bg-surface p-6">
@@ -163,7 +163,7 @@ export default function ConsentFlow({ patient, onDone, onCancel }) {
                 ) : step === 1 ? (
                     <>
                         <div className="rounded-md border border-line bg-surface p-6 shadow-panel">
-                            <h3 className="mb-2 font-serif text-2xl text-ink">
+                            <h3 className="mb-2 font-display text-2xl text-ink">
                                 {n.title}
                             </h3>
                             <p className="mb-6 text-base text-ink/80">
@@ -171,7 +171,7 @@ export default function ConsentFlow({ patient, onDone, onCancel }) {
                             </p>
                             {n.sections.map((s) => (
                                 <div key={s.heading} className="mb-5">
-                                    <h4 className="mb-1.5 text-sm font-medium uppercase tracking-wide text-clinical-600">
+                                    <h4 className="mb-1.5 text-sm font-semibold text-clinical-600">
                                         {s.heading}
                                     </h4>
                                     {s.text && (

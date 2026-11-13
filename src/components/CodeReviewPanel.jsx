@@ -46,7 +46,7 @@ export default function CodeReviewPanel({
                     strokeWidth={1.75}
                     className="shrink-0 text-amber-700"
                 />
-                <h3 className="flex-1 font-serif text-lg text-ink">
+                <h3 className="flex-1 font-display text-lg text-ink">
                     Codes to review
                 </h3>
                 <span className="rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">

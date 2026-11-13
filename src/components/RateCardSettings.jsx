@@ -14,7 +14,7 @@ import { useDirtyFlag } from "../hooks/useDirty";
 import useDraft from "../hooks/useDraft";
 import DraftBanner from "./DraftBanner";
 const inputCls =
-    "w-full rounded border border-line px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
+    "w-full rounded border border-line px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 
 const money = (n) =>
     "₹" +
@@ -254,7 +254,7 @@ export default function RateCardSettings() {
 
     return (
         <div className="bg-surface border border-line rounded-md shadow-panel p-6">
-            <h2 className="font-serif text-xl text-ink">Service rate card</h2>
+            <h2 className="font-display text-xl text-ink">Service rate card</h2>
             <p className="text-sm text-muted mt-1">
                 Services and fees for billing. Tax is added on top of the fee.
             </p>
@@ -266,7 +266,7 @@ export default function RateCardSettings() {
                 <>
                     <DraftBanner draft={taxDraft} />
                     {/* ---------- Taxes ---------- */}
-                    <p className="mt-6 text-[11px] font-medium uppercase tracking-wide text-muted">
+                    <p className="mt-6 group-label">
                         Tax brackets
                     </p>
                     {taxes.length === 0 ? (
@@ -376,7 +376,7 @@ export default function RateCardSettings() {
                     </div>
                     <DraftBanner draft={svcDraft} />
                     {/* ---------- Services ---------- */}
-                    <p className="mt-8 text-[11px] font-medium uppercase tracking-wide text-muted">
+                    <p className="mt-8 group-label">
                         Services
                     </p>
                     {services.length === 0 ? (

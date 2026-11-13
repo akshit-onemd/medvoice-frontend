@@ -7,12 +7,12 @@ import {
     usableList,
     ShowCodesContext,
 } from "./shared";
-export function VitalsCard({ vitals }) {
+export function VitalsCard({ vitals, title = "Vitals" }) {
     const list = usableList(vitals).filter((v) => v.value);
     const showCodes = useContext(ShowCodesContext);
 
     return (
-        <SectionCard icon={Activity} title="Vitals" count={list.length}>
+        <SectionCard icon={Activity} title={title} count={list.length}>
             {list.length === 0 ? (
                 <EmptyNote>
                     No vitals were recorded in this consultation.
@@ -32,7 +32,7 @@ export function VitalsCard({ vitals }) {
                                     </span>
                                 )}
                             </p>
-                            <p className="text-xl font-serif text-ink leading-tight mt-0.5">
+                            <p className="text-xl font-display text-ink leading-tight mt-0.5">
                                 {v.value}
                                 {v.units && (
                                     <span className="text-xs text-muted font-sans ml-1">
@@ -48,13 +48,13 @@ export function VitalsCard({ vitals }) {
     );
 }
 
-export function AllergiesCard({ allergies }) {
+export function AllergiesCard({ allergies, title = "Allergies" }) {
     const list = usableList(allergies);
 
     return (
         <SectionCard
             icon={ShieldAlert}
-            title="Allergies"
+            title={title}
             count={list.length}
             tone="alert"
         >

@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { isGeneral, linesOf } from "../templates/general";
 import autoTable from "jspdf-autotable";
 import { medLines } from "./brandDisplay";
 
@@ -68,7 +69,7 @@ const item = (primary, secondary) =>
 
 export function generateConsultationPdf(
     result,
-    { includeTranscript = false, doctor = null } = {},
+    { includeTranscript = false, doctor = null, template = null } = {},
 ) {
     const data = result?.structured_data || {};
     const saved = result?.saved || {};
@@ -553,6 +554,19 @@ export function generateConsultationPdf(
     section(HIST, "Other history", other.length > 0, () => {
         other.forEach((e) => bullet(item(txt(e.name), txt(e.notes))));
     });
+
+    // ---------- The template's own sections ----------
+    const ASSESS = "Assessment";
+    list(template?.sections)
+        .filter((s) => isGeneral(s) && s.print !== false)
+        .forEach((s) => {
+            const lines = linesOf(s, data.custom?.[s.id]);
+            section(ASSESS, txt(s.title), lines.length > 0, () => {
+                lines.forEach((l) =>
+                    bullet(l.label ? item(txt(l.label), txt(l.text)) : [{ text: txt(l.text) }]),
+                );
+            });
+        });
 
     // ---------- Prescription: Medications → Diagnosis → Follow up ----------
     const RX = "Prescription";

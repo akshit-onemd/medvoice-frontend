@@ -13,6 +13,26 @@ const fmt = (iso) =>
         year: "numeric",
     });
 
+const initials = (name = "") =>
+    name
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((w) => w[0] || "")
+        .join("")
+        .toUpperCase() || "?";
+
+export function Avatar({ name }) {
+    return (
+        <span
+            aria-hidden="true"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-clinical-50 text-[13px] font-semibold text-clinical-600"
+        >
+            {initials(name)}
+        </span>
+    );
+}
+
 const visitLine = (p) =>
     p.last_visit
         ? `Last visit ${fmt(p.last_visit)} · ${p.visit_count} visit${p.visit_count === 1 ? "" : "s"}`
@@ -98,8 +118,8 @@ export default function PatientList({
                 <SearchInput
                     value={query}
                     onChange={setQuery}
-                    placeholder="Search patients by name or phone"
-                    inputClassName="w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
+                    placeholder="Search by name or phone"
+                    inputClassName="w-full rounded-lg border border-line bg-surface px-3 py-3 text-base text-ink placeholder:text-muted focus:border-clinical-500 outline-none"
                 />
             )}
 
@@ -123,20 +143,21 @@ export default function PatientList({
                             Tap a row or click “View details” for records
                         </p>
                     )} */}
-                    <ul className="mt-1 rounded border border-line divide-y divide-line overflow-hidden">
+                    <ul className="mt-3 divide-y divide-line">
                         {rows.map((p) =>
                             staff ? (
                                 <li
                                     key={p.id}
-                                    className="flex items-center gap-2 pr-2"
+                                    className="flex items-center gap-2"
                                 >
                                     <button
                                         type="button"
                                         onClick={() => onEdit?.(p)}
-                                        className="min-w-0 flex-1 flex items-center gap-3 px-3 py-3 text-left hover:bg-paper"
+                                        className="min-w-0 flex-1 flex items-center gap-3 rounded px-2 py-3 text-left hover:bg-paper"
                                     >
+                                        <Avatar name={p.name} />
                                         <div className="min-w-0 flex-1">
-                                            <p className="flex items-center gap-2 text-sm text-ink">
+                                            <p className="flex items-center gap-2 text-[15px] font-medium text-ink">
                                                 <span className="truncate">
                                                     {p.name}
                                                 </span>
@@ -177,14 +198,16 @@ export default function PatientList({
                             ) : (
                                 <li
                                     key={p.id}
-                                    className="flex items-center gap-2 pr-2"
+                                    className="flex items-center gap-2"
                                 >
                                     <button
                                         type="button"
                                         onClick={() => onViewDetails?.(p)}
-                                        className="min-w-0 flex-1 text-left px-3 py-3 hover:bg-paper"
+                                        className="min-w-0 flex-1 flex items-center gap-3 rounded text-left px-2 py-3 hover:bg-paper"
                                     >
-                                        <p className="flex items-center gap-2 text-sm text-ink">
+                                        <Avatar name={p.name} />
+                                        <span className="min-w-0 flex-1 block">
+                                        <p className="flex items-center gap-2 text-[15px] font-medium text-ink">
                                             <span className="truncate">
                                                 {p.name}
                                             </span>
@@ -200,11 +223,12 @@ export default function PatientList({
                                         <p className="text-xs text-muted mt-0.5">
                                             {visitLine(p)}
                                         </p>
+                                        </span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => onSelect?.(p)}
-                                        className="shrink-0 inline-flex items-center gap-1 rounded border border-clinical-500 bg-clinical-50 px-3 py-2 text-xs font-medium text-clinical-600 hover:bg-clinical-500 hover:text-paper transition-colors"
+                                        className="shrink-0 inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-clinical-200 bg-clinical-50 px-3 py-1.5 sm:px-3.5 sm:py-2 text-[13px] font-medium text-clinical-600 hover:border-clinical-500 hover:bg-clinical-500 hover:text-white transition-colors"
                                     >
                                         <Plus size={14} strokeWidth={2} />
                                         New visit
@@ -231,9 +255,9 @@ export default function PatientList({
     if (staff) return body;
 
     return (
-        <div className="w-full max-w-2xl mx-auto">
-            <div className="bg-surface border border-line rounded-md shadow-panel p-4">
-                <h2 className="font-serif text-xl text-ink mb-3">Patients</h2>
+        <div className="w-full max-w-3xl mx-auto">
+            <h1 className="page-title mb-5">Patients</h1>
+            <div className="bg-surface border border-line rounded-md shadow-panel p-4 sm:p-5">
                 {body}
             </div>
         </div>

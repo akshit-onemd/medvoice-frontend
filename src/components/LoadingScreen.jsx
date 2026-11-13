@@ -35,8 +35,13 @@ export default function LoadingScreen({
 
     return (
         <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-4">
+            <img
+                src="/onemd-icon.png"
+                alt=""
+                className="h-14 w-14 rounded-xl shadow-pop"
+            />
             <div
-                className="h-6 w-6 rounded-full border-2 border-clinical-500 border-t-transparent motion-safe:animate-spin"
+                className="h-5 w-5 rounded-full border-2 border-clinical-500 border-t-transparent motion-safe:animate-spin"
                 aria-hidden="true"
             />
             <p

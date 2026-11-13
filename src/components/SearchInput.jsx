@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Loader2, Mic, Square } from "lucide-react";
+import { Loader2, Mic, Search, Square } from "lucide-react";
 
 const SR =
     typeof window !== "undefined"
@@ -72,13 +72,19 @@ export default function SearchInput({
     return (
         <div>
             <div className="relative">
+                <Search
+                    size={18}
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                />
                 <input
                     type="text"
                     placeholder={placeholder}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     autoFocus={autoFocus}
-                    className={`${inputClassName} ${SR ? "pr-11" : ""}`}
+                    className={`${inputClassName} pl-11 ${SR ? "pr-11" : ""}`}
                 />
                 {SR && (
                     <button

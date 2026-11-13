@@ -10,7 +10,7 @@ const MAX_UPLOAD_W = 500;
 const MAX_LEN = 450000;
 
 const inputCls =
-    "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
+    "w-full rounded border border-line bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 
 // Crop a transparent drawing canvas to just the ink
 function trimCanvas(src) {
@@ -285,10 +285,10 @@ export default function ProfileForm({
         },
     });
     return (
-        <div className="w-full max-w-2xl mx-auto">
+        <div className="w-full max-w-3xl mx-auto">
             <DraftBanner draft={draft} />
             <div className="bg-surface border border-line rounded-md shadow-panel p-6">
-                <h2 className="font-serif text-xl text-ink">{title}</h2>
+                <h2 className="font-display text-xl text-ink">{title}</h2>
                 {intro && <p className="text-sm text-muted mt-1">{intro}</p>}
 
                 <div className="mt-5 space-y-4">

@@ -1,11 +1,16 @@
-import { getDoctorProfile } from "../api/processAudio";
+import { getDoctorProfile, getTemplateVersion } from "../api/processAudio";
 import { withLetterheadStrips } from "./letterheadStrips";
 
 export async function downloadConsultationPdf(result) {
-    const [{ generateConsultationPdf }, profile] = await Promise.all([
+    const ref = result?.structured_data?.template;
+    const hasCustom =
+        ref?.id && Object.keys(result?.structured_data?.custom || {}).length > 0;
+    const [{ generateConsultationPdf }, profile, tpl] = await Promise.all([
         import("./generateConsultationPdf"),
         getDoctorProfile().catch(() => null), // still produce the PDF if the profile can't load
+        // The template's own sections need their titles and fields
+        hasCustom ? getTemplateVersion(ref.id, ref.version).catch(() => null) : null,
     ]);
     const doctor = await withLetterheadStrips(profile);
-    generateConsultationPdf(result, { doctor });
+    generateConsultationPdf(result, { doctor, template: tpl?.definition || null });
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { UserPlus, Pencil, ShieldCheck } from "lucide-react";
+import { UserPlus, Pencil, ShieldCheck, Users } from "lucide-react";
+import AppShell from "./components/AppShell";
 import PatientList from "./components/PatientList";
-import { UserButton } from "@clerk/react";
 import SearchInput from "./components/SearchInput";
 import PatientForm from "./components/PatientForm";
 import ServicePicker from "./components/ServicePicker";
@@ -17,13 +17,12 @@ import {
     createPatient,
     updatePatient,
 } from "./api/processAudio";
-import BrandMark from "./components/BrandMark";
 import ConsentFlow from "./components/ConsentFlow";
 import ConsentBadge from "./components/ConsentBadge";
 import { clearAllDrafts, removeItem } from "./utils/draftStore";
 
 const inputCls =
-    "w-full rounded border border-line bg-paper px-3 py-2 text-xl text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
+    "w-full rounded border border-line bg-surface px-3 py-2.5 text-xl text-ink placeholder:text-muted focus:border-clinical-500 outline-none";
 
 const asPhone = (q) => {
     const d = q.replace(/[\s\-+()]/g, "");
@@ -191,31 +190,34 @@ export default function StaffDashboard({ doctorName }) {
     const q = query.trim();
     const showAddPrompt = q.length >= 2 && !searching && searchedFor === q;
     return (
-        <div className="min-h-screen bg-paper px-4 pt-24 pb-16">
-            <div className="fixed top-0 left-0 right-0 z-50 bg-paper border-b border-line">
-                <div className="w-full max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
-                    <button
-                        type="button"
-                        aria-label="Go to home"
-                        className="flex items-center gap-3 text-left disabled:cursor-not-allowed"
-                    >
-                        <BrandMark />
-                        <h1 className="font-serif text-3xl text-ink leading-tight">
-                            OneMD
-                        </h1>
-                    </button>
-                    <div className="ml-auto flex items-center gap-3">
-                        <span className="rounded-full border border-line bg-surface px-2 py-0.5 text-sm text-muted">
-                            Staff
-                        </span>
-
-                        <UserButton />
-                    </div>
-                </div>
+        <AppShell
+            nav={[
+                {
+                    key: "patients",
+                    label: "Patients",
+                    icon: Users,
+                    active: true,
+                    onClick: () => {},
+                },
+            ]}
+            accountName="Front desk"
+            accountNote={drName ? `Staff for ${drName}` : "Staff"}
+        >
+            <div className="mx-auto mb-5 w-full max-w-3xl">
+                <h1 className="page-title">
+                    {mode === "edit"
+                        ? "Edit patient"
+                        : mode
+                          ? "Add a patient"
+                          : "Patients"}
+                </h1>
+                <p className="mt-1 text-sm text-muted">
+                    Patients you add are ready for {drName} to search and
+                    start.
+                </p>
             </div>
-
             {mode ? (
-                <div className="w-full max-w-2xl mx-auto">
+                <div className="w-full max-w-3xl mx-auto">
                     <div className="bg-surface border border-line rounded-md shadow-panel p-6">
                         {/* <div className="flex items-center gap-2 mb-1">
                             <UserPlus
@@ -223,7 +225,7 @@ export default function StaffDashboard({ doctorName }) {
                                 className="text-clinical-600"
                                 strokeWidth={1.75}
                             />
-                            <h2 className="font-serif text-lg text-ink">
+                            <h2 className="font-display text-lg text-ink">
                                 {mode === "edit"
                                     ? "Edit patient"
                                     : "Add a patient"}
@@ -246,7 +248,7 @@ export default function StaffDashboard({ doctorName }) {
                             onCancel={closeForm}
                             extra={
                                 <div className="mt-5">
-                                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted mb-2">
+                                    <p className="group-label mb-2">
                                         Services
                                     </p>
                                     <ServicePicker
@@ -264,7 +266,7 @@ export default function StaffDashboard({ doctorName }) {
                     </div>
                 </div>
             ) : (
-                <div className="w-full max-w-2xl mx-auto">
+                <div className="w-full max-w-3xl mx-auto">
                     <div className="bg-surface border border-line rounded-md shadow-panel p-6">
                         <SearchInput
                             value={query}
@@ -376,6 +378,6 @@ export default function StaffDashboard({ doctorName }) {
                     onDone={onConsentDone}
                 />
             )}
-        </div>
+        </AppShell>
     );
 }

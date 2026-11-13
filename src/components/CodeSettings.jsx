@@ -22,7 +22,7 @@ export default function CodeSettings() {
 
     return (
         <div className="mt-8">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+            <p className="group-label">
                 Medical codes
             </p>
             <div className="mt-2 flex items-start justify-between gap-4 rounded border border-line bg-surface px-4 py-3">

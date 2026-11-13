@@ -24,7 +24,7 @@ import {
 import DobField from "./DobField";
 import { useDirtyFlag } from "../hooks/useDirty";
 const inputCls =
-    "w-full rounded border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none disabled:opacity-50";
+    "w-full rounded border border-line bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-clinical-500 outline-none disabled:opacity-50";
 
 const errorField = (msg) =>
     /uhid/i.test(msg) ? "uhid" : /phone/i.test(msg) ? "phone" : null;
@@ -49,7 +49,7 @@ function Field({ label, required, error, children }) {
 function Section({ title, children }) {
     return (
         <div className="mt-5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted mb-2">
+            <p className="group-label mb-2">
                 {title}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

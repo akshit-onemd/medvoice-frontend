@@ -118,11 +118,20 @@ export default function SuggestedPlanCard({
     canEdit,
     hasTranscript,
     onChange,
+    // Item kinds this note's template can take (medication, diagnosis, followup); all by default
+    allowedKinds = null,
 }) {
     // Still being prepared right after the upload. A plan stuck for minutes counts as none,
     // so the doctor can ask for one.
     const preparing = planPending({ suggested_plan: planIn });
-    const plan = planIn?.status === "generating" ? null : planIn;
+    const shown = planIn?.status === "generating" ? null : planIn;
+    const plan =
+        shown && allowedKinds && Array.isArray(shown.items)
+            ? {
+                  ...shown,
+                  items: shown.items.filter((i) => allowedKinds.includes(i.kind)),
+              }
+            : shown;
     const [selected, setSelected] = useState(new Set());
     const [busy, setBusy] = useState("");
     const [error, setError] = useState("");
@@ -363,7 +372,7 @@ export default function SuggestedPlanCard({
                     strokeWidth={1.75}
                     className="shrink-0 text-clinical-600"
                 />
-                <h3 className="flex-1 font-serif text-lg text-ink">
+                <h3 className="flex-1 font-display text-lg text-ink">
                     AI suggested plan
                 </h3>
                 {open && (
@@ -395,7 +404,7 @@ export default function SuggestedPlanCard({
                         if (!rows.length) return null;
                         return (
                             <div key={kind} className="mt-4">
-                                <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                                <p className="group-label">
                                     {title}
                                 </p>
                                 <ul className="mt-1.5 divide-y divide-line overflow-hidden rounded border border-line">

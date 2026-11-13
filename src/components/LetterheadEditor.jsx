@@ -356,7 +356,7 @@ export default function LetterheadEditor({
     );
     return (
         <div className="bg-surface border border-line rounded-md shadow-panel p-6">
-            <h2 className="font-serif text-xl text-ink">{title}</h2>
+            <h2 className="font-display text-xl text-ink">{title}</h2>
             <p className="text-sm text-muted mt-1">{description}</p>
 
             {sameAs && (

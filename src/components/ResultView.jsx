@@ -41,6 +41,12 @@ import {
     ShowCodesContext,
 } from "./sections/shared";
 import { useShowCodes } from "../utils/codePrefs";
+import { layoutFor, useNoteTemplate } from "../utils/templateLayout";
+import { SECTION_TYPES } from "../templates/sectionTypes";
+import { isEmptyGeneral } from "../templates/general";
+import GeneralSectionCard from "./sections/GeneralSectionCard";
+import GeneralSectionEditor from "./GeneralSectionEditor";
+import ChangeTemplateDialog from "./ChangeTemplateDialog";
 import {
     applyBackground,
     codesPending,
@@ -140,6 +146,7 @@ export default function ResultView({ result, onReset }) {
     const [doc, setDoc] = useState(() => cleanDoc(result?.structured_data));
     const hadFailure = !!result?.structured_data?.raw_response;
     const [billOpen, setBillOpen] = useState(false);
+    const [changeOpen, setChangeOpen] = useState(false);
     const [voiceResult, setVoiceResult] = useState(null);
     const [editingSection, setEditingSection] = useState(null); // null | "prescription" | a section key
     useEffect(() => {
@@ -204,6 +211,14 @@ export default function ResultView({ result, onReset }) {
     }, [consultationId, waitingCodes, waitingPlan]);
 
     const data = doc;
+    // The note's template decides which sections show, in what order, with what titles
+    const noteTemplate = useNoteTemplate(doc);
+    const layout = useMemo(() => layoutFor(noteTemplate), [noteTemplate]);
+    const planKinds = [
+        layout.has("prescription") && "medication",
+        layout.has("diagnosis") && "diagnosis",
+        layout.has("followup") && "followup",
+    ].filter(Boolean);
     const rx = data.prescription || null;
     // and the freshly regenerated consultation_summary into local state.
     // Saving is quick now. The overview and any new codes arrive a little later.
@@ -290,39 +305,39 @@ export default function ResultView({ result, onReset }) {
             String(v.value).trim() !== "",
     );
 
-    const sections = [
+    const allSections = [
         {
             key: "vitals",
             label: "Vitals",
             value: recordedVitals,
-            render: () => <VitalsCard vitals={recordedVitals} />,
+            render: (title) => <VitalsCard title={title} vitals={recordedVitals} />,
         },
         {
             key: "allergies",
             label: "Allergies",
             value: data.allergies,
-            render: () => <AllergiesCard allergies={data.allergies} />,
+            render: (title) => <AllergiesCard title={title} allergies={data.allergies} />,
         },
         {
             key: "conditions",
             label: "Conditions",
             value: data.conditions,
-            render: () => <ConditionsCard conditions={data.conditions} />,
+            render: (title) => <ConditionsCard title={title} conditions={data.conditions} />,
         },
         {
             key: "medication_history",
             label: "Medications",
             value: data.medication_history,
-            render: () => (
-                <MedicationsCard medications={data.medication_history} />
+            render: (title) => (
+                <MedicationsCard title={title} medications={data.medication_history} />
             ),
         },
         {
             key: "investigation_history",
             label: "Investigations",
             value: data.investigation_history,
-            render: () => (
-                <InvestigationsCard
+            render: (title) => (
+                <InvestigationsCard title={title}
                     investigations={data.investigation_history}
                 />
             ),
@@ -331,55 +346,103 @@ export default function ResultView({ result, onReset }) {
             key: "procedures",
             label: "Procedures",
             value: data.procedures,
-            render: () => <ProceduresCard procedures={data.procedures} />,
+            render: (title) => <ProceduresCard title={title} procedures={data.procedures} />,
         },
         {
             key: "system_review",
             label: "System review",
             value: data.system_review,
-            render: () => (
-                <SystemReviewCard systemReview={data.system_review} />
+            render: (title) => (
+                <SystemReviewCard title={title} systemReview={data.system_review} />
             ),
         },
         {
             key: "family_history",
             label: "Family history",
             value: data.family_history,
-            render: () => (
-                <FamilyHistoryCard familyHistory={data.family_history} />
+            render: (title) => (
+                <FamilyHistoryCard title={title} familyHistory={data.family_history} />
             ),
         },
         {
             key: "lifestyle_habits",
             label: "Lifestyle",
             value: data.lifestyle_habits,
-            render: () => <LifestyleCard lifestyle={data.lifestyle_habits} />,
+            render: (title) => <LifestyleCard title={title} lifestyle={data.lifestyle_habits} />,
         },
         {
             key: "social_history",
             label: "Social history",
             value: data.social_history,
-            render: () => (
-                <SocialHistoryCard socialHistory={data.social_history} />
+            render: (title) => (
+                <SocialHistoryCard title={title} socialHistory={data.social_history} />
             ),
         },
         {
             key: "other_history",
             label: "Other history",
             value: data.other_history,
-            render: () => (
-                <OtherHistoryCard otherHistory={data.other_history} />
+            render: (title) => (
+                <OtherHistoryCard title={title} otherHistory={data.other_history} />
             ),
         },
     ];
 
-    const filledSections = sections.filter((s) => !isEmptyValue(s.value));
-    const emptySections = sections.filter((s) => isEmptyValue(s.value));
+    // Only the template's history sections, in its order, with its titles
+    const byKey = Object.fromEntries(allSections.map((s) => [s.key, s]));
+    const sections = layout.cards
+        .filter((c) => c.general || byKey[c.key])
+        .map((c) =>
+            c.general
+                ? {
+                      key: c.key,
+                      label: c.title,
+                      general: c.section,
+                      value: data.custom?.[c.section.id],
+                      empty: isEmptyGeneral(c.section, data.custom?.[c.section.id]),
+                      render: () => (
+                          <GeneralSectionCard
+                              section={c.section}
+                              value={data.custom?.[c.section.id]}
+                              title={c.title}
+                          />
+                      ),
+                  }
+                : {
+            ...byKey[c.key],
+            // Keep the short chip name unless the template renamed the section
+            label:
+                c.title !== SECTION_TYPES[c.type]?.title
+                    ? c.title
+                    : byKey[c.key].label,
+            render: () => byKey[c.key].render(c.title),
+        });
+    const isEmptySection = (s) => (s.general ? s.empty : isEmptyValue(s.value));
+    const filledSections = sections.filter((s) => !isEmptySection(s));
+    const emptySections = sections.filter(isEmptySection);
+    const editingGeneral = sections.find((s) => s.general && s.key === editingSection);
+    const saveCustom = (custom) => {
+        setDoc((d) => ({ ...d, custom }));
+        setEditingSection(null);
+        refreshOverview();
+    };
+    const generalEditor = (s) => (
+        <GeneralSectionEditor
+            section={s.general}
+            value={s.value}
+            title={s.label}
+            consultationId={consultationId}
+            onSaved={saveCustom}
+            onCancel={() => setEditingSection(null)}
+        />
+    );
+    // Rebuilding needs the recording; visits from uploaded reports only can't change template
+    const canChangeTemplate = canEdit && (result?.transcript || "").trim().length >= 40;
 
     return (
         <CodeReviewContext.Provider value={codeCtx}>
             <ShowCodesContext.Provider value={showCodes}>
-                <div className="w-full max-w-2xl mx-auto">
+                <div className="w-full max-w-3xl mx-auto">
                     <TopBar
                         onReset={onReset}
                         language={result?.language}
@@ -391,6 +454,26 @@ export default function ResultView({ result, onReset }) {
                         }
                         onBill={canEdit ? () => setBillOpen(true) : undefined}
                     />
+                    {(doc.template?.name || canChangeTemplate) && (
+                        <div className="-mt-3 mb-5 flex items-center gap-2 pl-[52px] text-sm text-muted">
+                            <span>
+                                Template:{" "}
+                                <span className="text-ink">
+                                    {doc.template?.name || noteTemplate?.name || "General OPD"}
+                                </span>
+                            </span>
+                            {canChangeTemplate && (
+                                <button
+                                    type="button"
+                                    onClick={() => setChangeOpen(true)}
+                                    disabled={!!editingSection}
+                                    className="text-clinical-600 hover:underline disabled:opacity-40"
+                                >
+                                    Change
+                                </button>
+                            )}
+                        </div>
+                    )}
                     {canEdit && (
                         <div className="mb-5">
                             <VoiceFillButton
@@ -426,6 +509,7 @@ export default function ResultView({ result, onReset }) {
                         </div>
                     )}
                     <SuggestedPlanCard
+                        allowedKinds={planKinds}
                         consultationId={consultationId}
                         plan={data.suggested_plan}
                         allergies={data.allergies}
@@ -457,6 +541,7 @@ export default function ResultView({ result, onReset }) {
                             <PrescriptionEditor
                                 consultationId={consultationId}
                                 prescription={rx}
+                                parts={layout.rx}
                                 onSaved={saveSection("prescription")}
                                 onCancel={() => setEditingSection(null)}
                             />
@@ -464,7 +549,7 @@ export default function ResultView({ result, onReset }) {
                     ) : (
                         (rx || canEdit) && (
                             <div className="mb-5">
-                                {canEdit && !rx && (
+                                {canEdit && !rx && layout.rx.length > 0 && (
                                     <button
                                         type="button"
                                         onClick={() =>
@@ -476,7 +561,7 @@ export default function ResultView({ result, onReset }) {
                                         Add prescription & plan
                                     </button>
                                 )}
-                                {rx && (
+                                {rx && layout.rx.length > 0 && (
                                     <CardActionContext.Provider
                                         value={
                                             canEdit
@@ -490,7 +575,7 @@ export default function ResultView({ result, onReset }) {
                                                 : null
                                         }
                                     >
-                                        <PrescriptionCard prescription={rx} />
+                                        <PrescriptionCard prescription={rx} parts={layout.rx} />
                                     </CardActionContext.Provider>
                                 )}
                             </div>
@@ -523,7 +608,9 @@ export default function ResultView({ result, onReset }) {
                                 key={s.key}
                                 className="break-inside-avoid mb-5"
                             >
-                                {editingSection === s.key ? (
+                                {editingSection === s.key && s.general ? (
+                                    generalEditor(s)
+                                ) : editingSection === s.key ? (
                                     <HistorySectionEditor
                                         sectionKey={s.key}
                                         consultationId={consultationId}
@@ -555,7 +642,11 @@ export default function ResultView({ result, onReset }) {
                             </div>
                         ))}
                     </div>
+                    {editingGeneral && isEmptySection(editingGeneral) && (
+                        <div className="mt-5">{generalEditor(editingGeneral)}</div>
+                    )}
                     {editingSection &&
+                        !editingGeneral &&
                         emptySections.some((s) => s.key === editingSection) && (
                             <div className="mt-5">
                                 <HistorySectionEditor
@@ -575,7 +666,7 @@ export default function ResultView({ result, onReset }) {
                         )}
                     {emptySections.length > 0 && (
                         <div className="mt-5 bg-surface border border-line rounded-md px-5 py-4">
-                            <p className="font-serif text-base text-ink leading-tight mb-4">
+                            <p className="font-display text-base text-ink leading-tight mb-4">
                                 Not recorded
                             </p>
                             <div className="flex flex-wrap gap-2">
@@ -614,7 +705,7 @@ export default function ResultView({ result, onReset }) {
                 </div>
             ) : (
                 <div className="mt-5">
-                    {canEdit && !rx && (
+                    {canEdit && !rx && layout.rx.length > 0 && (
                         <button
                             type="button"
                             onClick={() => setEditingSection("prescription")}
@@ -624,7 +715,7 @@ export default function ResultView({ result, onReset }) {
                             Add prescription & plan
                         </button>
                     )}
-                    {rx && (
+                    {rx && layout.rx.length > 0 && (
                         <CardActionContext.Provider
                             value={
                                 canEdit
@@ -636,7 +727,7 @@ export default function ResultView({ result, onReset }) {
                                     : null
                             }
                         >
-                            <PrescriptionCard prescription={rx} />
+                            <PrescriptionCard prescription={rx} parts={layout.rx} />
                         </CardActionContext.Provider>
                     )}
                 </div>
@@ -653,7 +744,7 @@ export default function ResultView({ result, onReset }) {
                                 onClick={() => setShowTranscript((v) => !v)}
                                 className="w-full flex items-center justify-between px-6 py-4 text-left"
                             >
-                                <span className="font-serif text-base text-ink">
+                                <span className="font-display text-base text-ink">
                                     Full transcript
                                 </span>
                                 <ChevronDown
@@ -698,6 +789,17 @@ export default function ResultView({ result, onReset }) {
                             )}
                         </div>
                     )}
+                    {changeOpen && (
+                        <ChangeTemplateDialog
+                            consultationId={consultationId}
+                            currentId={doc.template?.id}
+                            onChanged={(sd) => {
+                                setDoc(cleanDoc(sd));
+                                setEditingSection(null);
+                            }}
+                            onClose={() => setChangeOpen(false)}
+                        />
+                    )}
                     {billOpen && (
                         <BillDialog
                             consultationId={consultationId}
@@ -709,6 +811,7 @@ export default function ResultView({ result, onReset }) {
                             consultationId={consultationId}
                             result={voiceResult}
                             doc={doc}
+                            template={noteTemplate}
                             editorOpen={!!editingSection}
                             onApplied={applyVoiceBody}
                             onClose={() => setVoiceResult(null)}
@@ -734,7 +837,7 @@ export default function ResultView({ result, onReset }) {
 
 function TopBar({ onReset, language, onDownload, onBill }) {
     return (
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between gap-3 mb-6">
             <div className="flex items-center gap-3">
                 {/* <div className="flex h-9 w-9 items-center justify-center rounded bg-clinical-500 text-paper">
                     <Stethoscope size={18} strokeWidth={1.75} />
@@ -743,14 +846,15 @@ function TopBar({ onReset, language, onDownload, onBill }) {
                 <button
                     type="button"
                     onClick={onReset}
-                    className="inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-2.5 text-sm text-ink hover:bg-paper transition-colors"
+                    aria-label="Back"
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink hover:bg-paper transition-colors"
                 >
                     <ArrowLeft size={16} strokeWidth={1.75} />
                     {/* <span className="hidden sm:inline">Go Back</span> */}
                 </button>
 
                 <div>
-                    <h1 className="font-serif text-xl sm:text-2xl text-ink leading-tight">
+                    <h1 className="font-display text-xl sm:text-[28px] leading-tight text-ink">
                         Consultation summary
                     </h1>
                     {/* {language && (
@@ -765,17 +869,17 @@ function TopBar({ onReset, language, onDownload, onBill }) {
                     <button
                         type="button"
                         onClick={onDownload}
-                        className="inline-flex items-center gap-2 rounded bg-clinical-500 px-2.5 py-2.5 text-sm text-paper hover:bg-clinical-600 transition-colors"
+                        className="inline-flex h-10 items-center gap-2 rounded-lg bg-clinical-500 px-3.5 text-sm font-medium text-white hover:bg-clinical-600 transition-colors"
                     >
                         <Download size={16} strokeWidth={1.75} />
-                        <span className="hidden sm:inline">Summary</span>
+                        <span className="hidden sm:inline">Download PDF</span>
                     </button>
                 )}
                 {onBill && (
                     <button
                         type="button"
                         onClick={onBill}
-                        className="inline-flex items-center gap-2 rounded border border-clinical-500 bg-clinical-50 px-2.5 py-2.5 text-sm text-clinical-600 hover:bg-clinical-500 hover:text-paper transition-colors"
+                        className="inline-flex h-10 items-center gap-2 rounded-lg border border-line bg-surface px-3.5 text-sm font-medium text-ink hover:bg-paper transition-colors"
                     >
                         <IndianRupee size={16} strokeWidth={1.75} />
                         <span className="hidden sm:inline">Create Bill</span>

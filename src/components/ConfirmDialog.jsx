@@ -45,7 +45,7 @@ export default function ConfirmDialog({
                 aria-describedby="confirm-message"
                 className="w-full max-w-sm rounded-md border border-line bg-surface p-5 shadow-panel"
             >
-                <h2 id="confirm-title" className="font-serif text-lg text-ink">
+                <h2 id="confirm-title" className="font-display text-lg text-ink">
                     {title}
                 </h2>
                 <p

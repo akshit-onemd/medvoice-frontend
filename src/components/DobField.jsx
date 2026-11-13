@@ -233,7 +233,7 @@ function DobSheet({ value, onConfirm, onClear, onCancel }) {
                     overscrollBehavior: "contain",
                 }}
             >
-                <h2 id="dob-title" className="font-serif text-lg text-ink">
+                <h2 id="dob-title" className="font-display text-lg text-ink">
                     Date of birth
                 </h2>
                 <p className="mt-1 text-sm text-clinical-600">

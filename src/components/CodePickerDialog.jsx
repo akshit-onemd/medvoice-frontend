@@ -103,7 +103,7 @@ export default function CodePickerDialog({ item, onPick, onClose }) {
             >
                 <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-5">
                     <div className="min-w-0">
-                        <h2 className="truncate font-serif text-lg text-ink">
+                        <h2 className="truncate font-display text-lg text-ink">
                             Choose a code
                         </h2>
                         <p className="truncate text-xs text-muted">
@@ -124,7 +124,7 @@ export default function CodePickerDialog({ item, onPick, onClose }) {
                 <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
                     {suggested.length > 0 && (
                         <>
-                            <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                            <p className="group-label">
                                 Suggested
                             </p>
                             <ul className="mt-1.5 divide-y divide-line overflow-hidden rounded border border-line">
@@ -143,7 +143,7 @@ export default function CodePickerDialog({ item, onPick, onClose }) {
                         </>
                     )}
 
-                    <p className="mt-4 text-[11px] font-medium uppercase tracking-wide text-muted">
+                    <p className="mt-4 group-label">
                         Search
                     </p>
                     <div className="relative mt-1.5">
@@ -153,7 +153,7 @@ export default function CodePickerDialog({ item, onPick, onClose }) {
                             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
                         />
                         <input
-                            className="w-full rounded border border-line bg-paper py-2 pl-9 pr-3 text-sm text-ink outline-none focus:border-clinical-500"
+                            className="w-full rounded border border-line bg-surface py-2.5 pl-9 pr-3 text-sm text-ink outline-none focus:border-clinical-500"
                             placeholder="Type a name or code"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}

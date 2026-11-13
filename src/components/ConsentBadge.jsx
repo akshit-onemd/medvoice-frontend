@@ -34,7 +34,7 @@ export default function ConsentBadge({
         <CheckCircle2
             size={16}
             strokeWidth={2.25}
-            className="shrink-0 text-clinical-600"
+            className="shrink-0 text-ok-500"
             aria-hidden="true"
         />
     ) : (
@@ -69,7 +69,7 @@ export default function ConsentBadge({
                 onClick={onClick}
                 title={title}
                 aria-label={title}
-                className={`inline-flex items-center gap-1 rounded px-0.5 text-left hover:bg-white/60 ${className}`}
+                className={`inline-flex items-center gap-1 rounded px-0.5 text-left hover:bg-ink/5 ${className}`}
             >
                 {icon}
                 {text}

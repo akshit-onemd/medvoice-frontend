@@ -42,12 +42,12 @@ export default function ErrorView({ info, onRetry, onBack }) {
     };
 
     return (
-        <div className="mx-auto w-full max-w-2xl">
+        <div className="mx-auto w-full max-w-3xl">
             <div className="rounded-md border border-line bg-surface p-6 text-center shadow-panel">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-alert-50 text-alert-500">
                     <AlertTriangle size={22} strokeWidth={1.75} />
                 </div>
-                <h2 className="mt-4 font-serif text-xl text-ink">
+                <h2 className="mt-4 font-display text-xl text-ink">
                     {info?.message || "Something went wrong. Please try again."}
                 </h2>
                 <p className="mt-2 text-sm text-muted">
@@ -84,7 +84,7 @@ export default function ErrorView({ info, onRetry, onBack }) {
                         onClick={() => setOpen((v) => !v)}
                         className="flex w-full items-center justify-between px-5 py-3.5 text-left"
                     >
-                        <span className="font-serif text-base text-ink">
+                        <span className="font-display text-base text-ink">
                             Transcript
                         </span>
                         <ChevronDown

@@ -9,12 +9,15 @@ import {
 import { MetaRow, Chip, CodeRow, SectionCard, usableList } from "./shared";
 import { medLines } from "../../utils/brandDisplay";
 
-function SubSection({ icon: Icon, label, tone, children }) {
+function SubSection({ icon: Icon, label, tone, order, children }) {
     return (
-        <div className="rounded-md border border-line overflow-hidden">
+        <div
+            className="rounded-md border border-line overflow-hidden"
+            style={{ order }}
+        >
             <div className={`flex items-center gap-2 px-4 py-2 ${tone}`}>
                 <Icon size={14} strokeWidth={1.75} />
-                <span className="text-sm font-medium uppercase tracking-wide">
+                <span className="text-sm font-semibold">
                     {label}
                 </span>
             </div>
@@ -23,13 +26,24 @@ function SubSection({ icon: Icon, label, tone, children }) {
     );
 }
 
-export function PrescriptionCard({ prescription }) {
-    if (!prescription || typeof prescription !== "object") return null;
+// The parts this card shows, in order, with their titles (from the note's template)
+const DEFAULT_PARTS = [
+    { type: "diagnosis", title: "Diagnosis" },
+    { type: "complaints", title: "Presenting symptoms" },
+    { type: "prescription", title: "Prescribed today" },
+    { type: "followup", title: "Follow-up" },
+];
 
-    const symptoms = usableList(prescription.symptoms);
-    const medications = usableList(prescription.medications);
-    const diagnosis = usableList(prescription.diagnosis);
-    const followup = usableList(prescription.followup);
+export function PrescriptionCard({ prescription, parts = DEFAULT_PARTS }) {
+    if (!prescription || typeof prescription !== "object") return null;
+    const pos = Object.fromEntries(parts.map((p, i) => [p.type, i]));
+    const titleOf = (type) => parts.find((p) => p.type === type)?.title;
+    const only = (type, list) => (type in pos ? usableList(list) : []);
+
+    const symptoms = only("complaints", prescription.symptoms);
+    const medications = only("prescription", prescription.medications);
+    const diagnosis = only("diagnosis", prescription.diagnosis);
+    const followup = only("followup", prescription.followup);
 
     const totalCount =
         symptoms.length +
@@ -44,11 +58,12 @@ export function PrescriptionCard({ prescription }) {
             title="Prescription & Plan"
             count={totalCount}
         >
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
                 {diagnosis.length > 0 && (
                     <SubSection
                         icon={Stethoscope}
-                        label="Diagnosis"
+                        label={titleOf("diagnosis")}
+                        order={pos.diagnosis}
                         tone="bg-clinical-50 text-clinical-600"
                     >
                         <ul className="space-y-3">
@@ -86,7 +101,8 @@ export function PrescriptionCard({ prescription }) {
                 {symptoms.length > 0 && (
                     <SubSection
                         icon={Activity}
-                        label="Presenting symptoms"
+                        label={titleOf("complaints")}
+                        order={pos.complaints}
                         tone="bg-paper text-ink/70"
                     >
                         <ul className="divide-y divide-line -my-1">
@@ -140,7 +156,8 @@ export function PrescriptionCard({ prescription }) {
                 {medications.length > 0 && (
                     <SubSection
                         icon={Pill}
-                        label="Prescribed today"
+                        label={titleOf("prescription")}
+                        order={pos.prescription}
                         tone="bg-paper text-ink/70"
                     >
                         <ul className="divide-y divide-line -my-1">
@@ -187,7 +204,8 @@ export function PrescriptionCard({ prescription }) {
                 {followup.length > 0 && (
                     <SubSection
                         icon={CalendarClock}
-                        label="Follow-up"
+                        label={titleOf("followup")}
+                        order={pos.followup}
                         tone="bg-amber-50 text-amber-400"
                     >
                         <ul className="divide-y divide-line -my-1">

@@ -28,11 +28,11 @@ function StatusTag({ status }) {
     );
 }
 
-export function MedicationsCard({ medications }) {
+export function MedicationsCard({ medications, title = "Medication History" }) {
     const list = usableList(medications);
 
     return (
-        <SectionCard icon={Pill} title="Medication History" count={list.length}>
+        <SectionCard icon={Pill} title={title} count={list.length}>
             {list.length === 0 ? (
                 <EmptyNote>No medications were discussed.</EmptyNote>
             ) : (
@@ -79,14 +79,14 @@ export function MedicationsCard({ medications }) {
     );
 }
 
-export function InvestigationsCard({ investigations }) {
+export function InvestigationsCard({ investigations, title = "Investigations" }) {
     const list = usableList(investigations);
     const showCodes = useContext(ShowCodesContext);
 
     return (
         <SectionCard
             icon={FlaskConical}
-            title="Investigations"
+            title={title}
             count={list.length}
         >
             {list.length === 0 ? (

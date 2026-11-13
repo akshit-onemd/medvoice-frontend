@@ -103,7 +103,7 @@ export default function BrandSettings() {
 
     return (
         <div className="mt-8">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+            <p className="group-label">
                 Preferred brands
             </p>
             <p className="mt-1 text-xs text-muted">
@@ -156,7 +156,7 @@ export default function BrandSettings() {
                             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
                         />
                         <input
-                            className="w-full rounded border border-line bg-paper py-2 pl-9 pr-3 text-sm text-ink outline-none focus:border-clinical-500"
+                            className="w-full rounded border border-line bg-surface py-2.5 pl-9 pr-3 text-sm text-ink outline-none focus:border-clinical-500"
                             placeholder="Search a medicine or brand, for example paracetamol or Crocin"
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
@@ -247,7 +247,7 @@ export default function BrandSettings() {
                         </ol>
                     )}
 
-                    <p className="mt-3 text-[11px] uppercase tracking-wide text-muted">
+                    <p className="mt-3 group-label">
                         All brands
                     </p>
                     <ul className="mt-1.5 max-h-60 divide-y divide-line overflow-y-auto rounded border border-line bg-surface">

@@ -31,10 +31,10 @@ function ProfileGate({ initialProfile }) {
 
     if (profile === null) {
         return (
-            <div className="min-h-screen bg-paper px-4 py-10">
-                <div className="w-full max-w-2xl mx-auto mb-6 flex items-center gap-3">
-                    <BrandMark />
-                    <h1 className="font-serif text-3xl text-ink leading-tight">
+            <div className="min-h-screen bg-paper px-4 py-8 sm:py-12">
+                <div className="w-full max-w-3xl mx-auto mb-8 flex items-center gap-2.5">
+                    <BrandMark size={36} />
+                    <h1 className="font-display text-[22px] text-ink leading-none">
                         OneMD
                     </h1>
                     <div className="ml-auto">
@@ -100,7 +100,7 @@ function RoleGate() {
                 <button
                     type="button"
                     onClick={() => setAttempt((n) => n + 1)}
-                    className="rounded bg-clinical-500 text-paper px-4 py-2 text-sm"
+                    className="rounded-lg bg-clinical-500 text-white px-4 py-2.5 text-sm font-medium hover:bg-clinical-600"
                 >
                     Try again
                 </button>
@@ -124,7 +124,18 @@ export default function App() {
     return (
         <>
             <Show when="signed-out">
-                <div className="min-h-screen bg-paper flex items-center justify-center px-4">
+                <div className="min-h-screen bg-ink flex flex-col items-center justify-center gap-8 px-4 py-10">
+                    <div className="flex items-center gap-3 text-white">
+                        <BrandMark size={44} />
+                        <div>
+                            <p className="font-display text-2xl leading-none">
+                                OneMD
+                            </p>
+                            <p className="mt-1 text-sm text-white/60">
+                                Consultation notes, written as you talk.
+                            </p>
+                        </div>
+                    </div>
                     <SignIn />
                 </div>
             </Show>

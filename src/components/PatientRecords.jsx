@@ -108,7 +108,7 @@ export default function PatientRecords({
     }
 
     return (
-        <div className="w-full max-w-2xl mx-auto">
+        <div className="w-full max-w-3xl mx-auto">
             <div className="bg-surface border border-line rounded-md shadow-panel p-2">
                 <div className="flex items-center gap-3 rounded border border-clinical-500 bg-clinical-50 px-4 py-3 mb-6">
                     <button
@@ -196,7 +196,7 @@ export default function PatientRecords({
                             />
                         </div>
                     )}
-                <h3 className="font-serif text-base text-ink mb-2">
+                <h3 className="font-display text-base text-ink mb-2">
                     Past visits
                 </h3>
                 {loadingConsultations && (

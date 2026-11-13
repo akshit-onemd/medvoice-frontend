@@ -2,29 +2,94 @@
 @tailwind components;
 @tailwind utilities;
 
-html {
-  -webkit-font-smoothing: antialiased;
-  overflow-y: scroll;
-  scrollbar-gutter: stable;
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+
+  /* Form controls: one focus treatment everywhere */
+  input, select, textarea {
+    transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+  select:focus,
+  textarea:focus {
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(47, 58, 158, 0.16);
+  }
+  input::placeholder, textarea::placeholder {
+    color: #8A8EA3;
+  }
+  input[type="checkbox"], input[type="radio"] {
+    accent-color: #2F3A9E;
+  }
+
+  button:not(:disabled), [role="button"], summary, label[for] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  ::selection {
+    background: #DDE1F6;
+  }
 }
 
-body {
-  background-color: #f6f7f4;
-  color: #1c2a28;
+@layer components {
+  /* Headings. Weight and tracking live here so a heading only needs a size. */
+  .font-display {
+    font-weight: 600;
+    letter-spacing: -0.014em;
+  }
+
+  .page-title {
+    @apply font-display text-2xl sm:text-[28px] leading-tight text-ink;
+  }
+
+  /* Quiet label for a group of fields or a sub-section */
+  .group-label {
+    @apply text-[13px] font-semibold text-ink;
+  }
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #cdd5cf transparent;
+  scrollbar-color: #c9cddb transparent;
 }
 
 :focus-visible {
-  outline: 2px solid #2f6f62;
+  outline: 2px solid #2f3a9e;
   outline-offset: 2px;
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* Room for the phone tab bar and the home indicator */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
 
+@keyframes record-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+  50% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+}
+.record-live {
+  animation: record-pulse 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
@@ -32,4 +97,16 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* Field borders sit a step darker than dividers so inputs read as inputs */
+input.border-line,
+select.border-line,
+textarea.border-line {
+  border-color: #cdd1df;
+}
+input.border-line:hover:not(:focus):not(:disabled),
+select.border-line:hover:not(:focus):not(:disabled),
+textarea.border-line:hover:not(:focus):not(:disabled) {
+  border-color: #b1b6ca;
 }
