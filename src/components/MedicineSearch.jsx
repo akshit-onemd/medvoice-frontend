@@ -160,7 +160,8 @@ export function MedicineField({ value, onChange }) {
     const name = String(value?.name ?? "").trim();
     const brand = String(value?.brand ?? "").trim();
     const empty = !name && !brand;
-    const [open, setOpen] = useState(empty);
+    // "change": search from an empty box. "brands": search brands of the current generic.
+    const [open, setOpen] = useState(empty ? "change" : false);
     const [manual, setManual] = useState(false);
     const { primary, secondary } = medLines(value);
     const needsBrand = !empty && !brand && !value?._genericOk;
@@ -170,7 +171,7 @@ export function MedicineField({ value, onChange }) {
             <div>
                 <span className="mb-1 block text-xs text-muted">Medicine</span>
                 <MedicinePicker
-                    initialQuery={empty ? "" : name || brand}
+                    initialQuery={open === "brands" ? name || brand : ""}
                     autoFocus
                     onPick={(p) => {
                         onChange({
@@ -213,7 +214,7 @@ export function MedicineField({ value, onChange }) {
                     </div>
                     <button
                         type="button"
-                        onClick={() => setOpen(true)}
+                        onClick={() => setOpen("change")}
                         className="shrink-0 text-xs text-clinical-600 underline underline-offset-2"
                     >
                         Change
@@ -224,7 +225,7 @@ export function MedicineField({ value, onChange }) {
                         No brand chosen.{" "}
                         <button
                             type="button"
-                            onClick={() => setOpen(true)}
+                            onClick={() => setOpen("brands")}
                             className="underline underline-offset-2"
                         >
                             Search brands

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
-import { getPatient } from "../api/processAudio";
+import { Loader2, Pencil, X } from "lucide-react";
+import { getPatient, updatePatient } from "../api/processAudio";
 import { HISTORY, HABITS, ageLabel } from "../utils/patientValidation";
 import ConsentBadge from "./ConsentBadge";
+import ConsentRecordDialog from "./ConsentRecordDialog";
+import PatientForm from "./PatientForm";
 
 const clean = (v) => (v == null ? "" : String(v).trim());
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : "");
@@ -59,11 +61,38 @@ const phoneLink = (n) =>
         ""
     );
 
-/** Every detail we hold for a patient. Empty fields are left out. */
-export default function PatientDetails({ patient, consent }) {
+/** Every detail we hold for a patient. Empty fields are left out.
+ *  The doctor can edit every field here (Edit details) and open the consent record.
+ *  onSaved(patient): called with the saved patient so the page can update its header.
+ *  onRecordConsent(): opens the consent form (only where the page has one). */
+export default function PatientDetails({
+    patient,
+    consent,
+    onSaved,
+    onRecordConsent,
+}) {
     const [full, setFull] = useState(patient);
     const [loading, setLoading] = useState(true);
     const [failed, setFailed] = useState(false);
+    const [editing, setEditing] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState("");
+    const [showConsentRecord, setShowConsentRecord] = useState(false);
+
+    const save = async (payload) => {
+        setSaving(true);
+        setSaveError("");
+        try {
+            const saved = await updatePatient(patient.id, payload);
+            setFull((f) => ({ ...f, ...saved }));
+            setEditing(false);
+            onSaved?.(saved);
+        } catch (err) {
+            setSaveError(err.message || "Couldn't save the changes.");
+        } finally {
+            setSaving(false);
+        }
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -168,8 +197,36 @@ export default function PatientDetails({ patient, consent }) {
             referrer,
         ].some((v) => clean(v)) || medicalRows.some((r) => r && r[1]);
 
+    if (editing) {
+        return (
+            <PatientForm
+                initial={p}
+                submitLabel="Save changes"
+                cancelLabel="Cancel"
+                saving={saving}
+                error={saveError}
+                onSubmit={save}
+                onCancel={() => {
+                    setEditing(false);
+                    setSaveError("");
+                }}
+            />
+        );
+    }
+
     return (
         <div>
+            <div className="mb-2 flex justify-end">
+                <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    disabled={loading}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-clinical-600 underline underline-offset-2 disabled:opacity-40"
+                >
+                    <Pencil size={12} strokeWidth={1.75} />
+                    Edit details
+                </button>
+            </div>
             {sections.map((s) => (
                 <Section key={s.title} title={s.title} rows={s.rows} />
             ))}
@@ -178,10 +235,44 @@ export default function PatientDetails({ patient, consent }) {
                     <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
                         Consent
                     </p>
-                    <div className="py-1.5">
-                        <ConsentBadge status={consent} />
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5">
+                        <ConsentBadge
+                            status={consent}
+                            hint
+                            onClick={
+                                consent === "valid"
+                                    ? () => setShowConsentRecord(true)
+                                    : onRecordConsent
+                            }
+                        />
+                        {consent === "valid" && (
+                            <span className="text-sm text-ink">
+                                Consent on file
+                            </span>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setShowConsentRecord(true)}
+                            className="text-xs text-clinical-600 underline underline-offset-2"
+                        >
+                            View consent record
+                        </button>
                     </div>
                 </section>
+            )}
+            {showConsentRecord && (
+                <ConsentRecordDialog
+                    patient={p}
+                    onClose={() => setShowConsentRecord(false)}
+                    onRecord={
+                        onRecordConsent
+                            ? () => {
+                                  setShowConsentRecord(false);
+                                  onRecordConsent();
+                              }
+                            : undefined
+                    }
+                />
             )}
             {loading && (
                 <p className="mt-3 inline-flex items-center gap-2 text-xs text-muted">
@@ -204,7 +295,13 @@ export default function PatientDetails({ patient, consent }) {
 }
 
 /** Same content in a pop-up, for places where the page is already busy (the new visit screen). */
-export function PatientDetailsDialog({ patient, consent, onClose }) {
+export function PatientDetailsDialog({
+    patient,
+    consent,
+    onClose,
+    onSaved,
+    onRecordConsent,
+}) {
     useEffect(() => {
         const onKey = (e) => e.key === "Escape" && onClose?.();
         window.addEventListener("keydown", onKey);
@@ -236,7 +333,12 @@ export function PatientDetailsDialog({ patient, consent, onClose }) {
                         <X size={16} strokeWidth={1.75} />
                     </button>
                 </div>
-                <PatientDetails patient={patient} consent={consent} />
+                <PatientDetails
+                    patient={patient}
+                    consent={consent}
+                    onSaved={onSaved}
+                    onRecordConsent={onRecordConsent}
+                />
             </div>
         </div>
     );

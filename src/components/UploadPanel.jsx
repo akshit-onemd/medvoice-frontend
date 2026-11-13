@@ -26,7 +26,6 @@ import {
     Sparkles,
     ScanLine,
     Play,
-    ShieldCheck,
     Contact,
 } from "lucide-react";
 import SearchInput from "./SearchInput";
@@ -35,6 +34,7 @@ import { searchPatients, createPatient } from "../api/processAudio";
 import useConsent from "../hooks/useConsent";
 import ConsentFlow from "./ConsentFlow";
 import ConsentBadge from "./ConsentBadge";
+import ConsentRecordDialog from "./ConsentRecordDialog";
 import { PatientDetailsDialog } from "./PatientDetails";
 import ScanPages from "./ScanPages";
 function formatSize(bytes) {
@@ -98,6 +98,7 @@ export default function UploadPanel({
     const [consent, setConsent] = useConsent(selectedPatient?.id);
     const [showConsent, setShowConsent] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
+    const [showConsentRecord, setShowConsentRecord] = useState(false);
     const pausedRef = useRef(false);
     const activeMsRef = useRef(0);
     const segStartRef = useRef(0);
@@ -562,9 +563,22 @@ export default function UploadPanel({
                     {selectedPatient ? (
                         <div className="flex items-center gap-3 rounded border border-clinical-500 bg-clinical-50 px-4 py-3">
                             <div className="flex-1">
-                                <p className="flex flex-wrap items-center gap-2 text-base text-ink">
+                                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-base text-ink">
                                     {selectedPatient.name}
-                                    <ConsentBadge status={consent} />
+                                    <ConsentBadge
+                                        status={consent}
+                                        hint
+                                        onClick={
+                                            isRecording
+                                                ? undefined
+                                                : consent === "valid"
+                                                  ? () =>
+                                                        setShowConsentRecord(
+                                                            true,
+                                                        )
+                                                  : () => setShowConsent(true)
+                                        }
+                                    />
                                 </p>
                                 <p className="text-sm text-muted">
                                     {[
@@ -577,19 +591,6 @@ export default function UploadPanel({
                                         .join(" · ")}
                                 </p>
                             </div>
-                            {consent && consent !== "valid" && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowConsent(true)}
-                                    disabled={isRecording}
-                                    className="inline-flex shrink-0 items-center gap-1 rounded bg-clinical-500 px-3 py-1.5 text-xs font-medium text-paper hover:bg-clinical-600 disabled:opacity-40"
-                                >
-                                    <ShieldCheck size={14} />
-                                    {consent === "outdated"
-                                        ? "Re-sign"
-                                        : "Collect consent"}
-                                </button>
-                            )}
                             <button
                                 type="button"
                                 onClick={() => setShowDetails(true)}
@@ -1004,6 +1005,19 @@ export default function UploadPanel({
                     patient={selectedPatient}
                     consent={consent}
                     onClose={() => setShowDetails(false)}
+                    onSaved={(p) =>
+                        setSelectedPatient((s) => (s ? { ...s, ...p } : s))
+                    }
+                    onRecordConsent={() => {
+                        setShowDetails(false);
+                        setShowConsent(true);
+                    }}
+                />
+            )}
+            {showConsentRecord && selectedPatient && (
+                <ConsentRecordDialog
+                    patient={selectedPatient}
+                    onClose={() => setShowConsentRecord(false)}
                 />
             )}
             {showConsent && selectedPatient && (

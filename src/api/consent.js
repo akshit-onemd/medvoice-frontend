@@ -29,3 +29,6 @@ export const submitConsent = (patientId, payload) =>
     call(`/patients/${patientId}/consent`, json(payload));
 export const withdrawConsent = (patientId) =>
     call(`/patients/${patientId}/consent/withdraw`, json({}));
+// Full record for the doctor: latest agreement (with signature and the notice shown) and history
+export const getConsentRecord = (patientId) =>
+    call(`/patients/${patientId}/consent/record`);

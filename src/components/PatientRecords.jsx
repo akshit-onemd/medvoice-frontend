@@ -6,7 +6,6 @@ import {
     FileClock,
     Loader2,
     Plus,
-    ShieldCheck,
 } from "lucide-react";
 import ResultView from "./ResultView";
 import { AIOverviewCard } from "./sections/shared";
@@ -19,11 +18,20 @@ import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
 import useConsent from "../hooks/useConsent";
 import ConsentFlow from "./ConsentFlow";
 import ConsentBadge from "./ConsentBadge";
+import ConsentRecordDialog from "./ConsentRecordDialog";
 import PatientDetails from "./PatientDetails";
 
 const EMPTY_SUMMARY = { overview: "", details: [] };
 
-export default function PatientRecords({ patient, onBack, onNewVisit }) {
+export default function PatientRecords({
+    patient: patientIn,
+    onBack,
+    onNewVisit,
+}) {
+    // Local copy, so edits made in "View all details" show in the header at once
+    const [patient, setPatient] = useState(patientIn);
+    useEffect(() => setPatient(patientIn), [patientIn]);
+    const [showConsentRecord, setShowConsentRecord] = useState(false);
     const [consultations, setConsultations] = useState([]);
     const [loadingConsultations, setLoadingConsultations] = useState(true);
     const [patientSummary, setPatientSummary] = useState(EMPTY_SUMMARY);
@@ -113,9 +121,17 @@ export default function PatientRecords({ patient, onBack, onNewVisit }) {
                         <ArrowLeft size={16} strokeWidth={1.75} />
                     </button>
                     <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-2 text-base text-ink">
+                        <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-base text-ink">
                             <span className="truncate">{patient.name}</span>
-                            <ConsentBadge status={consent} />
+                            <ConsentBadge
+                                status={consent}
+                                hint
+                                onClick={
+                                    consent === "valid"
+                                        ? () => setShowConsentRecord(true)
+                                        : () => setShowConsent(true)
+                                }
+                            />
                         </p>
                         <p className="text-sm text-muted truncate">
                             {[
@@ -127,18 +143,6 @@ export default function PatientRecords({ patient, onBack, onNewVisit }) {
                                 .join(" · ")}
                         </p>
                     </div>
-                    {consent && consent !== "valid" && (
-                        <button
-                            type="button"
-                            onClick={() => setShowConsent(true)}
-                            className="shrink-0 inline-flex items-center gap-1 rounded bg-clinical-500 px-3 py-2 text-xs font-medium text-paper hover:bg-clinical-600"
-                        >
-                            <ShieldCheck size={14} />
-                            {consent === "outdated"
-                                ? "Re-sign"
-                                : "Collect consent"}
-                        </button>
-                    )}
                     {onNewVisit && (
                         <button
                             type="button"
@@ -170,6 +174,10 @@ export default function PatientRecords({ patient, onBack, onNewVisit }) {
                             <PatientDetails
                                 patient={patient}
                                 consent={consent}
+                                onSaved={(p) =>
+                                    setPatient((s) => ({ ...s, ...p }))
+                                }
+                                onRecordConsent={() => setShowConsent(true)}
                             />
                         </div>
                     )}
@@ -275,6 +283,12 @@ export default function PatientRecords({ patient, onBack, onNewVisit }) {
                     <p className="mt-4 text-sm text-alert-500">{error}</p>
                 )}
             </div>
+            {showConsentRecord && (
+                <ConsentRecordDialog
+                    patient={patient}
+                    onClose={() => setShowConsentRecord(false)}
+                />
+            )}
             {showConsent && (
                 <ConsentFlow
                     patient={patient}
