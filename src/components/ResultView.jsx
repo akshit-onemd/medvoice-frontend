@@ -54,6 +54,7 @@ import {
     PENDING_STALE_MS,
 } from "../utils/backgroundFill";
 import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
+import { noteHasContent, EMPTY_NOTE_MESSAGE } from "../utils/noteContent";
 import BrandMark from "./BrandMark";
 import PrescriptionEditor from "./PrescriptionEditor";
 import HistorySectionEditor from "./HistorySectionEditor";
@@ -438,6 +439,8 @@ export default function ResultView({ result, onReset }) {
     );
     // Rebuilding needs the recording; visits from uploaded reports only can't change template
     const canChangeTemplate = canEdit && (result?.transcript || "").trim().length >= 40;
+    // An empty note can't be printed or billed
+    const hasContent = noteHasContent(doc);
 
     return (
         <CodeReviewContext.Provider value={codeCtx}>
@@ -453,6 +456,7 @@ export default function ResultView({ result, onReset }) {
                             })
                         }
                         onBill={canEdit ? () => setBillOpen(true) : undefined}
+                        empty={!hasContent}
                     />
                     {(doc.template?.name || canChangeTemplate) && (
                         <div className="-mt-3 mb-5 flex items-center gap-2 pl-[52px] text-sm text-muted">
@@ -835,7 +839,7 @@ export default function ResultView({ result, onReset }) {
     );
 }
 
-function TopBar({ onReset, language, onDownload, onBill }) {
+function TopBar({ onReset, language, onDownload, onBill, empty = false }) {
     return (
         <div className="flex items-center justify-between gap-3 mb-6">
             <div className="flex items-center gap-3">
@@ -869,7 +873,9 @@ function TopBar({ onReset, language, onDownload, onBill }) {
                     <button
                         type="button"
                         onClick={onDownload}
-                        className="inline-flex h-10 items-center gap-2 rounded-lg bg-clinical-500 px-3.5 text-sm font-medium text-white hover:bg-clinical-600 transition-colors"
+                        disabled={empty}
+                        title={empty ? EMPTY_NOTE_MESSAGE : undefined}
+                        className="inline-flex h-10 items-center gap-2 rounded-lg bg-clinical-500 px-3.5 text-sm font-medium text-white hover:bg-clinical-600 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-clinical-500"
                     >
                         <Download size={16} strokeWidth={1.75} />
                         <span className="hidden sm:inline">Download PDF</span>
@@ -879,7 +885,9 @@ function TopBar({ onReset, language, onDownload, onBill }) {
                     <button
                         type="button"
                         onClick={onBill}
-                        className="inline-flex h-10 items-center gap-2 rounded-lg border border-line bg-surface px-3.5 text-sm font-medium text-ink hover:bg-paper transition-colors"
+                        disabled={empty}
+                        title={empty ? "Add details to the note before creating a bill." : undefined}
+                        className="inline-flex h-10 items-center gap-2 rounded-lg border border-line bg-surface px-3.5 text-sm font-medium text-ink hover:bg-paper transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface"
                     >
                         <IndianRupee size={16} strokeWidth={1.75} />
                         <span className="hidden sm:inline">Create Bill</span>

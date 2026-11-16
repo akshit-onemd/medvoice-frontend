@@ -12,6 +12,12 @@ function billDoctor(p) {
     };
 }
 
+// Never print a bill without services
+function checkItems(bill) {
+    if (!Array.isArray(bill?.items) || bill.items.length === 0)
+        throw new Error("This bill has no services, so there is nothing to print.");
+}
+
 async function prepare() {
     const [{ generateBillPdf }, profile] = await Promise.all([
         import("./generateBillPdf"),
@@ -22,11 +28,13 @@ async function prepare() {
 }
 
 export async function downloadBillPdf(bill) {
+    checkItems(bill);
     const { generateBillPdf, doctor } = await prepare();
     generateBillPdf(bill, { doctor });
 }
 
 export async function printBillPdf(bill) {
+    checkItems(bill);
     const { generateBillPdf, doctor } = await prepare();
     const { blob } = generateBillPdf(bill, { doctor, mode: "blob" });
     const url = URL.createObjectURL(blob);

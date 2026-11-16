@@ -93,7 +93,16 @@ function TemplatesPage() {
     const [view, setView] = useState({ mode: "list" }); // list | edit | chat
     const [preview, setPreview] = useState(null);
     const [askDelete, setAskDelete] = useState(null);
-    const [busy, setBusy] = useState("");
+    // Actions in progress, as "action:templateId". Only that template's buttons wait; the rest stay usable.
+    const [busy, setBusy] = useState(() => new Set());
+    const start = (key) => setBusy((s) => new Set(s).add(key));
+    const stop = (key) =>
+        setBusy((s) => {
+            const n = new Set(s);
+            n.delete(key);
+            return n;
+        });
+    const rowBusy = (id) => [...busy].some((k) => k.endsWith(`:${id}`));
     const [error, setError] = useState("");
     const [filter, setFilter] = useState("");
 
@@ -117,7 +126,7 @@ function TemplatesPage() {
     const ownCount = (list || []).filter((t) => !t.builtin).length;
 
     const act = async (key, fn) => {
-        setBusy(key);
+        start(key);
         setError("");
         try {
             await fn();
@@ -125,7 +134,7 @@ function TemplatesPage() {
         } catch (err) {
             setError(err.message || "Something went wrong");
         } finally {
-            setBusy("");
+            stop(key);
         }
     };
     const addCopy = (t) =>
@@ -136,7 +145,7 @@ function TemplatesPage() {
         });
     const makeDefault = (t) => act(`def:${t.id}`, () => setDefaultTemplate(t.id));
     const editOwn = async (t) => {
-        setBusy(`edit:${t.id}`);
+        start(`edit:${t.id}`);
         try {
             const full = await getTemplate(t.id);
             setPreview(null);
@@ -148,7 +157,7 @@ function TemplatesPage() {
         } catch {
             setError("Couldn't open the template");
         } finally {
-            setBusy("");
+            stop(`edit:${t.id}`);
         }
     };
     const done = () => {
@@ -176,31 +185,42 @@ function TemplatesPage() {
             </div>
         );
 
-    const rowActions = (t) => (
-        <>
-            {t.builtin ? (
-                <button type="button" className={btn} disabled={!!busy} onClick={() => addCopy(t)}>
-                    {busy === `copy:${t.id}` ? <Loader2 size={12} className="animate-spin" /> : <Copy size={12} />}
-                    Add to my templates
-                </button>
-            ) : (
-                <>
-                    <button type="button" className={btn} disabled={!!busy} onClick={() => editOwn(t)}>
-                        <Pencil size={12} /> Edit
+    const spin = <Loader2 size={12} className="animate-spin" />;
+    const rowActions = (t) => {
+        const wait = rowBusy(t.id);
+        const is = (a) => busy.has(`${a}:${t.id}`);
+        return (
+            <>
+                {t.builtin ? (
+                    <button type="button" className={btn} disabled={wait} onClick={() => addCopy(t)}>
+                        {is("copy") ? spin : <Copy size={12} />}
+                        {is("copy") ? "Adding…" : "Add to my templates"}
                     </button>
-                    <button type="button" className={`${btn} hover:text-alert-500`} disabled={!!busy} onClick={() => setAskDelete(t)}>
-                        <Trash2 size={12} /> Delete
+                ) : (
+                    <>
+                        <button type="button" className={btn} disabled={wait} onClick={() => editOwn(t)}>
+                            {is("edit") ? spin : <Pencil size={12} />} Edit
+                        </button>
+                        <button
+                            type="button"
+                            className={`${btn} hover:text-alert-500`}
+                            disabled={wait}
+                            onClick={() => setAskDelete(t)}
+                        >
+                            {is("del") ? spin : <Trash2 size={12} />}
+                            {is("del") ? "Deleting…" : "Delete"}
+                        </button>
+                    </>
+                )}
+                {!t.isDefault && (
+                    <button type="button" className={btn} disabled={wait} onClick={() => makeDefault(t)}>
+                        {is("def") ? spin : <Star size={12} />}
+                        {is("def") ? "Setting…" : "Set as default"}
                     </button>
-                </>
-            )}
-            {!t.isDefault && (
-                <button type="button" className={btn} disabled={!!busy} onClick={() => makeDefault(t)}>
-                    {busy === `def:${t.id}` ? <Loader2 size={12} className="animate-spin" /> : <Star size={12} />}
-                    Set as default
-                </button>
-            )}
-        </>
-    );
+                )}
+            </>
+        );
+    };
 
     return (
         <div className="mx-auto w-full max-w-3xl">
