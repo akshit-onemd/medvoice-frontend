@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import LiveWaveform from "./LiveWaveform";
-import TemplatePicker from "./TemplatePicker";
+import TemplatePicker, { rememberTemplate } from "./TemplatePicker";
 import AudioPlayer from "./AudioPlayer";
 import { downsample, decodePeaks } from "../utils/audioPeaks";
 import { useDirtyFlag } from "../hooks/useDirty";
@@ -508,6 +508,7 @@ export default function UploadPanel({
             );
             return;
         }
+        rememberTemplate(templateId);
         onSubmit(
             file,
             attachments,
@@ -540,13 +541,13 @@ export default function UploadPanel({
     });
     return (
         <div className="w-full max-w-3xl mx-auto">
-            <div className="mb-5">
+            {/* <div className="mb-5">
                 <h1 className="page-title">New visit</h1>
                 <p className="mt-1 text-sm text-muted">
                     Choose a patient, record the consultation, and get a
                     structured summary.
                 </p>
-            </div>
+            </div> */}
             <div className="bg-surface border border-line rounded-md shadow-panel p-5 sm:p-7">
                 {draft.note && (
                     <div className="mb-4 flex items-start gap-3 rounded border border-clinical-500 bg-clinical-50 px-3 py-2.5 text-sm text-ink">
@@ -574,7 +575,7 @@ export default function UploadPanel({
                     </div>
                 )}
                 <div className="mb-6 pb-6 border-b border-line">
-                    <h2 className="group-label mb-2.5">Patient</h2>
+                    {/* <h2 className="group-label mb-2.5">Patient</h2> */}
 
                     {selectedPatient ? (
                         <div className="flex items-center gap-3 rounded-lg border border-clinical-200 bg-clinical-50 px-4 py-3.5">
@@ -744,7 +745,7 @@ export default function UploadPanel({
                     Upload an audio file, or record the conversation directly in
                     your browser.
                 </p> */}
-                <h2 className="group-label mb-2.5">Consultation</h2>
+                {/* <h2 className="group-label mb-2.5">Consultation</h2> */}
                 <TemplatePicker value={templateId} onChange={setTemplateId} />
                 {isRecording && (
                     <div className="relative mb-4 rounded-lg border border-line bg-paper px-3 py-3">
@@ -833,13 +834,13 @@ export default function UploadPanel({
                         />
                     </div>
                 )}
-                {!file && !hasPatient && (
+                {/* {!file && !hasPatient && (
                     <p className="mt-2 text-xs text-muted">
                         {selectedPatient
                             ? "Recording is enabled once the patient's consent is recorded."
                             : "Select or add a patient above to enable recording."}
                     </p>
-                )}
+                )} */}
                 {file && (
                     <AudioPlayer
                         file={file}
@@ -851,13 +852,13 @@ export default function UploadPanel({
                         onRemove={clearFile}
                     />
                 )}
-                <div className="mt-7 border-t border-line pt-6">
-                    <h2 className="group-label">
+                <div className="mt-3 border-t border-line pt-2">
+                    <h2 className="mb-3 mt-0.5 group-label">
                         Reports and old prescriptions
                     </h2>
-                    <p className="mb-3 mt-0.5 text-xs text-muted">
+                    {/* <p className="mb-3 mt-0.5 text-xs text-muted">
                         Optional. Anything you attach is read into the note.
-                    </p>
+                    </p> */}
                     <div className="grid grid-cols-3 gap-2.5">
                         <label className={ATTACH_TILE}>
                             <Paperclip size={20} strokeWidth={1.75} />

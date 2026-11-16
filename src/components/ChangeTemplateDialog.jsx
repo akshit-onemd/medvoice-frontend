@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Loader2, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { changeNoteTemplate, listTemplates } from "../api/processAudio";
+import TemplateSearchList, { rememberTemplate } from "./TemplateSearchList";
 
 // Rebuild a note from its recording with another template
 export default function ChangeTemplateDialog({ consultationId, currentId, onChanged, onClose }) {
@@ -26,6 +27,7 @@ export default function ChangeTemplateDialog({ consultationId, currentId, onChan
         setError("");
         try {
             const body = await changeNoteTemplate(consultationId, pick);
+            rememberTemplate(pick);
             onChanged(body.structured_data);
             onClose();
         } catch (err) {
@@ -63,31 +65,15 @@ export default function ChangeTemplateDialog({ consultationId, currentId, onChan
                             <Loader2 size={14} className="animate-spin" /> Loading…
                         </p>
                     )}
-                    <ul className="space-y-1.5">
-                        {(list || []).map((t) => (
-                            <li key={t.id}>
-                                <button
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={() => setPick(t.id)}
-                                    className={`flex w-full items-center justify-between rounded border px-3 py-2 text-left text-sm transition-colors ${
-                                        pick === t.id
-                                            ? "border-clinical-500 bg-clinical-50 text-ink"
-                                            : "border-line bg-surface text-ink hover:bg-paper"
-                                    }`}
-                                >
-                                    <span>
-                                        {t.name}
-                                        <span className="block text-xs text-muted">
-                                            {t.builtin ? t.specialty || "Library" : "My template"}
-                                            {t.id === currentId ? " · current" : ""}
-                                        </span>
-                                    </span>
-                                    {pick === t.id && <Check size={14} className="text-clinical-600" />}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
+                    {list && (
+                        <TemplateSearchList
+                            list={list}
+                            value={pick}
+                            currentId={currentId}
+                            onPick={(t) => !busy && setPick(t.id)}
+                            maxHeight="45vh"
+                        />
+                    )}
                 </div>
                 <div className="border-t border-line px-5 py-4">
                     <p className="mb-3 text-xs leading-relaxed text-muted">
