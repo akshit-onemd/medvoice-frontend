@@ -835,13 +835,13 @@ export default function UploadPanel({
                         />
                     </div>
                 )}
-                {!file && !hasPatient && (
+                {/* {!file && !hasPatient && (
                     <p className="mt-2 text-xs text-muted">
                         {selectedPatient
                             ? "Recording is enabled once the patient's consent is recorded."
                             : "Select or add a patient above to enable recording."}
                     </p>
-                )}
+                )} */}
                 {file && (
                     <AudioPlayer
                         file={file}
