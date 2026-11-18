@@ -1,33 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, LayoutTemplate } from "lucide-react";
-import { listTemplates } from "../api/processAudio";
+import { forgetTemplates, useTemplateList } from "../api/templateCache";
 import TemplateSearchList from "./TemplateSearchList";
 
-let cached = null;
-export const forgetTemplateList = () => {
-    cached = null;
-};
+export const forgetTemplateList = () => forgetTemplates();
 export { rememberTemplate } from "./TemplateSearchList";
 
 // Which template the next note uses. Starts on the doctor's default; click to search.
 export default function TemplatePicker({ value, onChange, disabled }) {
-    const [list, setList] = useState(cached);
+    // Shown at once from the last visit (or the prefetch at sign-in), refreshed quietly
+    const { data: list, loading } = useTemplateList();
     const [open, setOpen] = useState(false);
     const boxRef = useRef(null);
     const buttonRef = useRef(null);
-
-    useEffect(() => {
-        let off = false;
-        listTemplates()
-            .then((b) => {
-                cached = b.templates || [];
-                if (!off) setList(cached);
-            })
-            .catch(() => {});
-        return () => {
-            off = true;
-        };
-    }, []);
     // Pick the default once the list arrives (or if the chosen one disappeared)
     useEffect(() => {
         if (!list?.length) return;
@@ -46,6 +31,15 @@ export default function TemplatePicker({ value, onChange, disabled }) {
         return () => document.removeEventListener("mousedown", onDown);
     }, [open]);
 
+    // Keep the row's place while the first list loads, so the page doesn't jump
+    if (loading)
+        return (
+            <div className="mb-4 flex h-[38px] items-center gap-2 rounded border border-line bg-surface px-3 text-sm text-muted" aria-busy="true">
+                <LayoutTemplate size={15} strokeWidth={1.75} className="shrink-0" />
+                <span className="shrink-0">Template</span>
+                <span className="h-3 w-32 animate-pulse rounded bg-line" />
+            </div>
+        );
     if (!list || list.length < 2) return null;
     const chosen = list.find((t) => t.id === value);
     const close = () => {

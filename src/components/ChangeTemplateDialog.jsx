@@ -1,21 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
-import { changeNoteTemplate, listTemplates } from "../api/processAudio";
+import { changeNoteTemplate } from "../api/processAudio";
+import { useTemplateList } from "../api/templateCache";
 import TemplateSearchList, { rememberTemplate } from "./TemplateSearchList";
 
 // Rebuild a note from its recording with another template
 export default function ChangeTemplateDialog({ consultationId, currentId, onChanged, onClose }) {
-    const [list, setList] = useState(null);
+    const { data: list, error: listError } = useTemplateList();
     const [pick, setPick] = useState(currentId || "");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
 
     useEffect(() => {
-        listTemplates()
-            .then((b) => setList(b.templates || []))
-            .catch(() => setError("Couldn't load templates"));
-    }, []);
+        if (listError) setError("Couldn't load templates");
+    }, [listError]);
     useEffect(() => {
         const onKey = (e) => e.key === "Escape" && !busy && onClose();
         document.addEventListener("keydown", onKey);

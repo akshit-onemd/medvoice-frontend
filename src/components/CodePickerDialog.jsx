@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 import { searchCodes } from "../api/processAudio";
 import { VOCAB_LABEL } from "../utils/codeItems";
 
@@ -53,8 +53,11 @@ export default function CodePickerDialog({ item, onPick, onClose }) {
         };
     }, [query, item.vocab]);
 
+    const [picking, setPicking] = useState("");
     const pick = async (code) => {
+        if (busy) return; // one save at a time; other rows stay as they are
         setBusy(true);
+        setPicking(code);
         setError("");
         try {
             await onPick(code);
@@ -62,6 +65,7 @@ export default function CodePickerDialog({ item, onPick, onClose }) {
         } catch (err) {
             setError(err.message || "Couldn't save the code.");
             setBusy(false);
+            setPicking("");
         }
     };
 
@@ -69,14 +73,17 @@ export default function CodePickerDialog({ item, onPick, onClose }) {
         <li>
             <button
                 type="button"
-                disabled={busy}
+                aria-busy={picking === r.code}
                 onClick={() => pick(r.code)}
-                className="flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-paper disabled:opacity-50"
+                className="flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-paper"
             >
                 <div className="min-w-0 flex-1">
                     <p className="text-sm text-ink">{r.term || r.code}</p>
                     <p className="text-xs text-muted">{r.code}</p>
                 </div>
+                {picking === r.code && (
+                    <Loader2 size={14} className="mt-0.5 shrink-0 animate-spin text-clinical-600" />
+                )}
                 {mark && (
                     <span className="shrink-0 rounded-full border border-line bg-paper px-1.5 py-0.5 text-[10px] text-muted">
                         {mark}

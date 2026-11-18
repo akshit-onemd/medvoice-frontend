@@ -1,5 +1,5 @@
 import React from "react";
-import { Star } from "lucide-react";
+import { Loader2, Star } from "lucide-react";
 
 export default function BrandRow({
     info,
@@ -7,6 +7,7 @@ export default function BrandRow({
     onSelect,
     onStar,
     disabled,
+    starring = "", // the brand whose star is being saved
 }) {
     if (!info?.brands?.length) return null;
     return (
@@ -36,7 +37,7 @@ export default function BrandRow({
                         </button>
                         <button
                             type="button"
-                            disabled={disabled}
+                            disabled={disabled || starring === b.name}
                             onClick={() => onStar(b)}
                             aria-label={
                                 b.favourite
@@ -45,15 +46,19 @@ export default function BrandRow({
                             }
                             className="border-l border-line px-1.5 py-1 hover:bg-white/60 disabled:opacity-50"
                         >
-                            <Star
-                                size={12}
-                                strokeWidth={1.75}
-                                className={
-                                    b.favourite
-                                        ? "fill-amber-400 text-amber-500"
-                                        : "text-muted"
-                                }
-                            />
+                            {starring === b.name ? (
+                                <Loader2 size={12} className="animate-spin text-muted" />
+                            ) : (
+                                <Star
+                                    size={12}
+                                    strokeWidth={1.75}
+                                    className={
+                                        b.favourite
+                                            ? "fill-amber-400 text-amber-500"
+                                            : "text-muted"
+                                    }
+                                />
+                            )}
                         </button>
                     </span>
                 );

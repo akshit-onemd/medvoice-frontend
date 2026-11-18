@@ -4,26 +4,20 @@ import { Copy, Loader2, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-r
 import {
     copyTemplate,
     deleteTemplate,
-    getTemplate,
-    listTemplates,
     setDefaultTemplate,
 } from "../../api/processAudio";
 import ConfirmDialog from "../ConfirmDialog";
 import TemplateOutline from "./TemplateOutline";
 import TemplateEditor from "./TemplateEditor";
 import TemplateChat from "./TemplateChat";
-import { forgetTemplateList } from "../TemplatePicker";
+import { loadTemplateDef, setTemplateList, templatesChanged, useTemplateDef, useTemplateList } from "../../api/templateCache";
 
 const KIND = { new: "New patient", follow_up: "Follow-up", condition: "Condition" };
 
 function PreviewDialog({ id, onClose, actions }) {
-    const [t, setT] = useState(null);
-    const [error, setError] = useState("");
-    useEffect(() => {
-        getTemplate(id)
-            .then(setT)
-            .catch(() => setError("Couldn't load the template"));
-    }, [id]);
+    // Instant when this template was opened before
+    const { data: t, error: loadError } = useTemplateDef(id);
+    const error = loadError ? "Couldn't load the template" : "";
     useEffect(() => {
         const onKey = (e) => e.key === "Escape" && onClose();
         document.addEventListener("keydown", onKey);
@@ -88,7 +82,7 @@ export default class TemplatesPageSafe extends React.Component {
 
 // Library + my templates, preview, add, edit, default, delete, create with AI
 function TemplatesPage() {
-    const [list, setList] = useState(null);
+    const { data: list, error: listError } = useTemplateList();
     const [tab, setTab] = useState("library");
     const [view, setView] = useState({ mode: "list" }); // list | edit | chat
     const [preview, setPreview] = useState(null);
@@ -106,16 +100,13 @@ function TemplatesPage() {
     const [error, setError] = useState("");
     const [filter, setFilter] = useState("");
 
-    const load = () =>
-        listTemplates()
-            .then((b) => {
-                setList(b.templates || []);
-                forgetTemplateList();
-            })
-            .catch(() => setError("Couldn't load templates"));
     useEffect(() => {
-        load();
-    }, []);
+        if (listError && !list) setError("Couldn't load templates");
+    }, [listError, list]);
+    // The doctor's own templates are few: fetch them ahead so Edit and Preview open at once
+    useEffect(() => {
+        (list || []).filter((t) => !t.builtin).forEach((t) => loadTemplateDef(t.id).catch(() => {}));
+    }, [list]);
 
     const shown = useMemo(() => {
         const f = filter.trim().toLowerCase();
@@ -130,7 +121,7 @@ function TemplatesPage() {
         setError("");
         try {
             await fn();
-            await load();
+            await templatesChanged(key.split(":")[1]);
         } catch (err) {
             setError(err.message || "Something went wrong");
         } finally {
@@ -143,11 +134,15 @@ function TemplatesPage() {
             setPreview(null);
             setTab("mine");
         });
-    const makeDefault = (t) => act(`def:${t.id}`, () => setDefaultTemplate(t.id));
+    // The badge moves at once; the server confirms (or the list is reloaded on an error)
+    const makeDefault = (t) => {
+        setTemplateList((list || []).map((x) => ({ ...x, isDefault: x.id === t.id })));
+        return act(`def:${t.id}`, () => setDefaultTemplate(t.id));
+    };
     const editOwn = async (t) => {
         start(`edit:${t.id}`);
         try {
-            const full = await getTemplate(t.id);
+            const full = await loadTemplateDef(t.id);
             setPreview(null);
             setView({
                 mode: "edit",
@@ -161,9 +156,9 @@ function TemplatesPage() {
         }
     };
     const done = () => {
+        templatesChanged(view.id);
         setView({ mode: "list" });
         setTab("mine");
-        load();
     };
 
     if (view.mode === "edit")

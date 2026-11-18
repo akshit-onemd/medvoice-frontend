@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import ServicePicker from "./ServicePicker";
 import {
     getRateCard,
@@ -91,17 +92,19 @@ export default function ConsultationServices({
                         Pre-filled by front desk. Save to confirm.
                     </p>
                 )}
-                <ServicePicker
-                    catalog={catalog}
-                    bundles={bundles}
-                    taxes={taxes}
-                    value={items}
-                    onChange={change}
-                    disabled={saving}
-                    allowAdhoc={allowAdhoc}
-                    bundleMode={bundleMode}
-                    emptyHint="No services yet. Add them in Profile, under Service rate card."
-                />
+                {/* Held still while saving, without greying every row */}
+                <div className={saving ? "pointer-events-none" : ""} aria-busy={saving}>
+                    <ServicePicker
+                        catalog={catalog}
+                        bundles={bundles}
+                        taxes={taxes}
+                        value={items}
+                        onChange={change}
+                        allowAdhoc={allowAdhoc}
+                        bundleMode={bundleMode}
+                        emptyHint="No services yet. Add them in Profile, under Service rate card."
+                    />
+                </div>
                 {error && (
                     <p className="mt-3 text-sm text-alert-500">{error}</p>
                 )}
@@ -113,6 +116,7 @@ export default function ConsultationServices({
                     disabled={saving}
                     className="mt-3 w-full shrink-0 rounded bg-clinical-500 py-2.5 text-sm font-medium text-paper hover:bg-clinical-600 disabled:opacity-40 transition-colors"
                 >
+                    {saving && <Loader2 size={14} className="mr-1.5 inline animate-spin align-[-2px]" />}
                     {saving ? "Saving…" : saveLabel}
                 </button>
             )}

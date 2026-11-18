@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, ShieldCheck } from "lucide-react";
+import { ChevronDown, Loader2, ShieldCheck } from "lucide-react";
 import { saveCodes } from "../api/processAudio";
 import { VOCAB_LABEL } from "../utils/codeItems";
 
@@ -11,7 +11,8 @@ export default function CodeReviewPanel({
     onPick,
 }) {
     const [open, setOpen] = useState(false);
-    const [busy, setBusy] = useState("");
+    // Rows being saved (item ids, or "all"). Only those rows wait; the rest stay usable.
+    const [busy, setBusy] = useState(() => new Set());
     const [error, setError] = useState("");
 
     const need = items.filter(
@@ -20,8 +21,9 @@ export default function CodeReviewPanel({
     if (!need.length) return null;
     const confirmable = need.filter((i) => i.code);
 
+    const rowBusy = (it) => busy.has(it.id) || (busy.has("all") && !!it.code);
     const run = async (changes, key) => {
-        setBusy(key);
+        setBusy((s) => new Set(s).add(key));
         setError("");
         try {
             const body = await saveCodes(consultationId, changes);
@@ -29,7 +31,11 @@ export default function CodeReviewPanel({
         } catch (err) {
             setError(err.message || "Couldn't save. Please try again.");
         } finally {
-            setBusy("");
+            setBusy((s) => {
+                const n = new Set(s);
+                n.delete(key);
+                return n;
+            });
         }
     };
 
@@ -96,7 +102,7 @@ export default function CodeReviewPanel({
                                         {it.code && (
                                             <button
                                                 type="button"
-                                                disabled={!!busy}
+                                                disabled={rowBusy(it)}
                                                 onClick={() =>
                                                     run(
                                                         [
@@ -108,16 +114,19 @@ export default function CodeReviewPanel({
                                                         it.id,
                                                     )
                                                 }
-                                                className="rounded bg-clinical-500 px-3 py-1.5 text-xs font-medium text-paper hover:bg-clinical-600 disabled:opacity-40"
+                                                className="inline-flex items-center gap-1.5 rounded bg-clinical-500 px-3 py-1.5 text-xs font-medium text-paper hover:bg-clinical-600 disabled:opacity-60"
                                             >
-                                                {busy === it.id
+                                                {rowBusy(it) && (
+                                                    <Loader2 size={12} className="animate-spin" />
+                                                )}
+                                                {rowBusy(it)
                                                     ? "Saving…"
                                                     : "Confirm"}
                                             </button>
                                         )}
                                         <button
                                             type="button"
-                                            disabled={!!busy}
+                                            disabled={rowBusy(it)}
                                             onClick={() => onPick(it)}
                                             className="rounded border border-line bg-surface px-3 py-1.5 text-xs text-ink hover:bg-paper disabled:opacity-40"
                                         >
@@ -134,7 +143,7 @@ export default function CodeReviewPanel({
                     {canEdit && confirmable.length > 1 && (
                         <button
                             type="button"
-                            disabled={!!busy}
+                            disabled={busy.has("all")}
                             onClick={() =>
                                 run(
                                     confirmable.map((i) => ({
@@ -146,7 +155,10 @@ export default function CodeReviewPanel({
                             }
                             className="mt-3 w-full rounded border border-clinical-500 bg-clinical-50 py-2 text-sm font-medium text-clinical-600 hover:bg-clinical-500 hover:text-paper disabled:opacity-40"
                         >
-                            {busy === "all"
+                            {busy.has("all") && (
+                                <Loader2 size={14} className="mr-1.5 inline animate-spin align-[-2px]" />
+                            )}
+                            {busy.has("all")
                                 ? "Saving…"
                                 : `Confirm all ${confirmable.length}`}
                         </button>

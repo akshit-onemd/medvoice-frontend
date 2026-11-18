@@ -9,7 +9,9 @@ import ResultView from "./components/ResultView";
 import ErrorView from "./components/ErrorView";
 import PatientRecords from "./components/PatientRecords";
 import ProfileForm from "./components/ProfileForm";
-import { processAudio } from "./api/processAudio";
+import { processAudio, listPatients } from "./api/processAudio";
+import { prefetchTemplates } from "./api/templateCache";
+import { setCached } from "./utils/cache";
 import LetterheadSettings from "./components/LetterheadSettings";
 import RateCardSettings from "./components/RateCardSettings";
 import BillLetterheadSettings from "./components/BillLetterheadSettings";
@@ -28,6 +30,13 @@ const SETTINGS_TABS = [
 // records is a parallel top-level stage, reachable from idle/result/error via the nav
 // profile is an overlay view controlled by showProfile, not a stage
 export default function Dashboard({ profile, onProfileChange }) {
+    // Fetch what the other tabs need while the doctor is on New visit, so they open at once
+    useEffect(() => {
+        prefetchTemplates();
+        listPatients({ q: "", offset: 0, limit: 20 })
+            .then((d) => setCached("patients:first:doctor", { patients: d.patients, hasMore: d.hasMore }))
+            .catch(() => {});
+    }, []);
     const [stage, setStage] = useState("idle");
     const [fileName, setFileName] = useState("");
     const [processingStage, setProcessingStage] = useState(0);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Search, Star, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Loader2, Search, Star, X } from "lucide-react";
 import {
     getBrandFamilies,
     getBrandPrefs,
@@ -15,7 +15,8 @@ export default function BrandSettings() {
     const [loading, setLoading] = useState(true);
     const [q, setQ] = useState("");
     const [hits, setHits] = useState([]);
-    const [edit, setEdit] = useState(null); // { ing_key, label, families, favs, saved }
+    const [edit, setEdit] = useState(null); // { ing_key, label, families, favs, saved, match }
+    const [filter, setFilter] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
 
@@ -50,23 +51,39 @@ export default function BrandSettings() {
         !!edit && JSON.stringify(edit.favs) !== JSON.stringify(edit.saved);
     useDirtyFlag(dirty);
 
-    const openEditor = async (ing_key, label, favs) => {
+    // brand: the brand the doctor searched for, so it is listed first and ready to star
+    const [opening, setOpening] = useState("");
+    const openEditor = async (ing_key, label, favs, brand = "") => {
         setError("");
+        setOpening(ing_key);
         try {
-            const d = await getBrandFamilies(ing_key);
+            const d = await getBrandFamilies(ing_key, brand);
+            const word = String(brand || "").split(/[\s\d]/)[0] || "";
             setEdit({
                 ing_key,
                 label: label || d.label || ing_key,
                 families: d.families || [],
                 favs: [...favs],
                 saved: [...favs],
+                match: word.toLowerCase(),
             });
+            setFilter(word);
             setQ("");
             setHits([]);
         } catch (e) {
             setError(e.message || "Couldn't load brands");
+        } finally {
+            setOpening("");
         }
     };
+    const shownFamilies = (() => {
+        if (!edit) return [];
+        const t = filter.trim().toLowerCase();
+        if (!t) return edit.families;
+        return edit.families.filter((f) =>
+            `${f.sample} ${f.family} ${f.manufacturer || ""}`.toLowerCase().includes(t),
+        );
+    })();
 
     const toggle = (fam) =>
         setEdit((e) => ({
@@ -95,6 +112,25 @@ export default function BrandSettings() {
             setError(e.message || "Couldn't save");
         } finally {
             setBusy(false);
+        }
+    };
+
+    // Removing a medicine's brands from the list: only that row waits
+    const [removing, setRemoving] = useState(() => new Set());
+    const remove = async (ing_key) => {
+        setRemoving((s) => new Set(s).add(ing_key));
+        setError("");
+        try {
+            await saveBrandPrefs(ing_key, []);
+            await reload();
+        } catch (e) {
+            setError(e.message || "Couldn't save");
+        } finally {
+            setRemoving((s) => {
+                const n = new Set(s);
+                n.delete(ing_key);
+                return n;
+            });
         }
     };
 
@@ -135,12 +171,16 @@ export default function BrandSettings() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => save(p.ing_key, [])}
-                                disabled={busy}
+                                onClick={() => remove(p.ing_key)}
+                                disabled={removing.has(p.ing_key)}
                                 aria-label={`Remove brands for ${p.label}`}
                                 className="text-muted hover:text-ink"
                             >
-                                <X size={14} strokeWidth={1.75} />
+                                {removing.has(p.ing_key) ? (
+                                    <Loader2 size={14} className="animate-spin" />
+                                ) : (
+                                    <X size={14} strokeWidth={1.75} />
+                                )}
                             </button>
                         </li>
                     ))}
@@ -168,6 +208,7 @@ export default function BrandSettings() {
                                 <li key={h.ing_key}>
                                     <button
                                         type="button"
+                                        disabled={opening === h.ing_key}
                                         onClick={() =>
                                             openEditor(
                                                 h.ing_key,
@@ -176,9 +217,10 @@ export default function BrandSettings() {
                                                     (p) =>
                                                         p.ing_key === h.ing_key,
                                                 )?.families || [],
+                                                h.matched_brand || "",
                                             )
                                         }
-                                        className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
+                                        className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm text-ink hover:bg-paper disabled:cursor-wait"
                                     >
                                         <span>
                                             {h.label}
@@ -188,7 +230,10 @@ export default function BrandSettings() {
                                                 </span>
                                             )}
                                         </span>
-                                        <span className="text-xs text-muted">
+                                        <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+                                            {opening === h.ing_key && (
+                                                <Loader2 size={12} className="animate-spin" />
+                                            )}
                                             {h.brand_count} products
                                         </span>
                                     </button>
@@ -250,8 +295,30 @@ export default function BrandSettings() {
                     <p className="mt-3 group-label">
                         All brands
                     </p>
+                    <p className="mt-0.5 text-xs text-muted">Tap a brand to star it.</p>
+                    <div className="relative mt-1.5">
+                        <Search
+                            size={13}
+                            strokeWidth={1.75}
+                            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted"
+                        />
+                        <input
+                            value={filter}
+                            onChange={(e) => setFilter(e.target.value)}
+                            placeholder={`Filter ${edit.families.length} brands`}
+                            className="w-full rounded border border-line bg-surface py-1.5 pl-8 pr-3 text-sm text-ink outline-none focus:border-clinical-500"
+                        />
+                    </div>
+                    {shownFamilies.length === 0 && (
+                        <p className="mt-1.5 rounded border border-line bg-surface px-3 py-2 text-sm text-muted">
+                            No brand matches “{filter}”.{" "}
+                            <button type="button" onClick={() => setFilter("")} className="text-clinical-600 underline">
+                                Show all
+                            </button>
+                        </p>
+                    )}
                     <ul className="mt-1.5 max-h-60 divide-y divide-line overflow-y-auto rounded border border-line bg-surface">
-                        {edit.families.map((f) => (
+                        {shownFamilies.map((f) => (
                             <li key={f.family}>
                                 <button
                                     type="button"
@@ -295,6 +362,7 @@ export default function BrandSettings() {
                             disabled={busy || !dirty}
                             className="flex-1 rounded bg-clinical-500 py-2 text-sm font-medium text-paper hover:bg-clinical-600 disabled:opacity-40"
                         >
+                            {busy && <Loader2 size={14} className="mr-1.5 inline animate-spin align-[-2px]" />}
                             {busy ? "Saving…" : "Save"}
                         </button>
                         <button

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Plus, Pencil, ShieldCheck } from "lucide-react";
 import SearchInput from "./SearchInput";
 import { listPatients } from "../api/processAudio";
+import { peek, setCached } from "../utils/cache";
 import ConsentBadge from "./ConsentBadge";
 
 const PAGE = 20;
@@ -48,15 +49,23 @@ export default function PatientList({
     onConsent,
 }) {
     const [query, setQuery] = useState("");
-    const [rows, setRows] = useState([]);
-    const [hasMore, setHasMore] = useState(false);
-    const [loading, setLoading] = useState(true);
+    // The first page (no search) is kept between visits, so the list shows at once and refreshes quietly
+    const FIRST = `patients:first:${staff ? "staff" : "doctor"}`;
+    const [rows, setRows] = useState(() => peek(FIRST)?.patients || []);
+    const [hasMore, setHasMore] = useState(() => !!peek(FIRST)?.hasMore);
+    const [loading, setLoading] = useState(() => !peek(FIRST));
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState("");
 
     useEffect(() => {
         const controller = new AbortController();
-        setLoading(true);
+        const first = !query.trim();
+        const cached = first ? peek(FIRST) : null;
+        if (cached) {
+            setRows(cached.patients);
+            setHasMore(cached.hasMore);
+            setLoading(false);
+        } else setLoading(true);
         setError("");
         const handle = setTimeout(
             async () => {
@@ -69,11 +78,14 @@ export default function PatientList({
                     });
                     setRows(d.patients);
                     setHasMore(d.hasMore);
+                    if (first) setCached(FIRST, { patients: d.patients, hasMore: d.hasMore });
                 } catch (err) {
                     if (err.name === "AbortError") return;
                     setError(err.message || "Failed to load patients");
-                    setRows([]);
-                    setHasMore(false);
+                    if (!cached) {
+                        setRows([]);
+                        setHasMore(false);
+                    }
                 } finally {
                     if (!controller.signal.aborted) setLoading(false);
                 }

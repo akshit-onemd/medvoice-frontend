@@ -383,8 +383,11 @@ export const searchBrandProducts = (q) =>
     rcFetch("GET", `/brands/products?q=${encodeURIComponent(q)}`);
 export const searchBrandMedicines = (q) =>
     rcFetch("GET", `/brands/medicines?q=${encodeURIComponent(q)}`);
-export const getBrandFamilies = (ing) =>
-    rcFetch("GET", `/brands/families?ing=${encodeURIComponent(ing)}`);
+export const getBrandFamilies = (ing, brand = "") =>
+    rcFetch(
+        "GET",
+        `/brands/families?ing=${encodeURIComponent(ing)}${brand ? `&brand=${encodeURIComponent(brand)}` : ""}`,
+    );
 export const getBrandPrefs = () => rcFetch("GET", "/brand-prefs");
 export const saveBrandPrefs = (ing_key, families) =>
     rcFetch("PUT", "/brand-prefs", { ing_key, families });

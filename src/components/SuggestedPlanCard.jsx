@@ -39,7 +39,7 @@ function MedChoice({
     it,
     pick,
     info,
-    busy,
+    starring,
     searching,
     onDecide,
     onSearch,
@@ -53,9 +53,8 @@ function MedChoice({
                     : `${pick.brand}${pick.name ? ` · ${pick.name}` : ""}`}
                 <button
                     type="button"
-                    disabled={busy}
                     onClick={() => onDecide(null)}
-                    className="ml-2 text-clinical-600 underline underline-offset-2 disabled:opacity-40"
+                    className="ml-2 text-clinical-600 underline underline-offset-2"
                 >
                     Change
                 </button>
@@ -70,7 +69,7 @@ function MedChoice({
             <BrandRow
                 info={info}
                 selected=""
-                disabled={busy}
+                starring={starring}
                 onSelect={(n) => n && onDecide({ brand: n })}
                 onStar={onStar}
             />
@@ -90,17 +89,15 @@ function MedChoice({
                 <div className="flex gap-3 pl-9 pr-3 pt-1 text-xs">
                     <button
                         type="button"
-                        disabled={busy}
                         onClick={onSearch}
-                        className="text-clinical-600 underline underline-offset-2 disabled:opacity-40"
+                        className="text-clinical-600 underline underline-offset-2"
                     >
                         Search all medicines
                     </button>
                     <button
                         type="button"
-                        disabled={busy}
                         onClick={() => onDecide({ generic: true })}
-                        className="text-muted underline underline-offset-2 disabled:opacity-40"
+                        className="text-muted underline underline-offset-2"
                     >
                         Keep as generic
                     </button>
@@ -213,9 +210,12 @@ export default function SuggestedPlanCard({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, planKey]);
 
+    // "itemId:brand" of the star being saved: only that star shows a spinner
+    const [starring, setStarring] = useState("");
     const star = async (item, b) => {
         const info = brandInfo[item.id];
         if (!info?.ingKey) return;
+        setStarring(`${item.id}:${b.name}`);
         try {
             await setBrandFavourite(info.ingKey, b.family, !b.favourite);
             const d = await lookupBrands([
@@ -227,8 +227,11 @@ export default function SuggestedPlanCard({
             }));
         } catch {
             /* the star is a convenience. Ignore a failure. */
+        } finally {
+            setStarring("");
         }
     };
+    const spin = <Loader2 size={14} className="mr-1.5 inline animate-spin align-[-2px]" />;
 
     if (preparing) {
         return (
@@ -260,7 +263,11 @@ export default function SuggestedPlanCard({
                     disabled={!!busy}
                     className="inline-flex items-center gap-2 rounded border border-dashed border-clinical-500 bg-surface px-4 py-2.5 text-sm text-clinical-600 hover:bg-clinical-50 disabled:opacity-40"
                 >
-                    <Sparkles size={16} strokeWidth={1.75} />
+                    {busy === "generate" ? (
+                        <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                        <Sparkles size={16} strokeWidth={1.75} />
+                    )}
                     {busy === "generate"
                         ? "Thinking…"
                         : "Suggest a treatment plan"}
@@ -297,8 +304,9 @@ export default function SuggestedPlanCard({
                         )
                     }
                     disabled={!!busy}
-                    className="text-clinical-600 underline underline-offset-2 disabled:opacity-40"
+                    className="inline-flex items-center gap-1 text-clinical-600 underline underline-offset-2 disabled:opacity-40"
                 >
+                    {busy === "show" && <Loader2 size={12} className="animate-spin" />}
                     Show
                 </button>
             </div>
@@ -429,9 +437,7 @@ export default function SuggestedPlanCard({
                                                                 it.id,
                                                             ) && !already
                                                         }
-                                                        disabled={
-                                                            already || !!busy
-                                                        }
+                                                        disabled={already}
                                                         onChange={() =>
                                                             toggle(it.id)
                                                         }
@@ -484,7 +490,15 @@ export default function SuggestedPlanCard({
                                                             info={
                                                                 brandInfo[it.id]
                                                             }
-                                                            busy={!!busy}
+                                                            starring={
+                                                                starring.startsWith(
+                                                                    `${it.id}:`,
+                                                                )
+                                                                    ? starring.slice(
+                                                                          String(it.id).length + 1,
+                                                                      )
+                                                                    : ""
+                                                            }
                                                             searching={
                                                                 !!searching[
                                                                     it.id
@@ -529,6 +543,7 @@ export default function SuggestedPlanCard({
                             }
                             className="flex-1 rounded bg-clinical-500 py-2.5 text-sm font-medium text-paper hover:bg-clinical-600 disabled:opacity-40"
                         >
+                            {busy === "approve" && spin}
                             {busy === "approve"
                                 ? "Adding…"
                                 : unresolved.length
@@ -550,6 +565,7 @@ export default function SuggestedPlanCard({
                             disabled={!!busy}
                             className="rounded border border-line bg-surface px-5 py-2.5 text-sm text-ink hover:bg-paper disabled:opacity-40"
                         >
+                            {busy === "dismiss" && spin}
                             Dismiss
                         </button>
                     </div>

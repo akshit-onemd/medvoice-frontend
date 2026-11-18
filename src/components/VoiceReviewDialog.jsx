@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { applyVoiceRows } from "../api/processAudio";
 import { useDirtyFlag } from "../hooks/useDirty";
 import MedicinePicker from "./MedicineSearch";
@@ -371,7 +371,6 @@ export default function VoiceReviewDialog({
                                                         type="checkbox"
                                                         className="mt-1"
                                                         checked={editSel.has(i)}
-                                                        disabled={busy}
                                                         onChange={() =>
                                                             toggleEdit(i)
                                                         }
@@ -422,7 +421,6 @@ export default function VoiceReviewDialog({
                                             type="checkbox"
                                             className="mt-1"
                                             checked={customSel.has(c.sid)}
-                                            disabled={busy}
                                             onChange={() => toggleCustom(c.sid)}
                                         />
                                         <ul className="min-w-0 flex-1 space-y-0.5">
@@ -463,7 +461,6 @@ export default function VoiceReviewDialog({
                                                                 checked={selected.has(
                                                                     it.id,
                                                                 )}
-                                                                disabled={busy}
                                                                 onChange={() =>
                                                                     toggle(
                                                                         it.id,
@@ -677,6 +674,7 @@ export default function VoiceReviewDialog({
                             disabled={!total || busy || unresolved > 0}
                             className="flex-1 rounded bg-clinical-500 py-2.5 text-sm font-medium text-paper hover:bg-clinical-600 disabled:opacity-40"
                         >
+                            {busy && <Loader2 size={14} className="mr-1.5 inline animate-spin align-[-2px]" />}
                             {busy
                                 ? "Applying…"
                                 : unresolved > 0

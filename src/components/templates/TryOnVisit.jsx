@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { getPatientConsultations, previewTemplate, searchPatients } from "../../api/processAudio";
 import { SECTION_TYPES } from "../../templates/sectionTypes";
@@ -26,6 +26,8 @@ export default function TryOnVisit({ def }) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [out, setOut] = useState(null);
+    const [running, setRunning] = useState(""); // the visit being tried
+    const ticket = useRef(0);
 
     const find = async () => {
         if (q.trim().length < 2) return;
@@ -45,17 +47,23 @@ export default function TryOnVisit({ def }) {
             setError("Couldn't load visits");
         }
     };
+    // Another visit can be picked while one runs; only the latest answer is shown
     const run = async (cid) => {
+        const mine = ++ticket.current;
         setBusy(true);
+        setRunning(cid);
         setError("");
         setOut(null);
         try {
             const body = await previewTemplate(cid, def);
-            setOut(body);
+            if (mine === ticket.current) setOut(body);
         } catch (err) {
-            setError(err.message || "Couldn't try the template");
+            if (mine === ticket.current) setError(err.message || "Couldn't try the template");
         } finally {
-            setBusy(false);
+            if (mine === ticket.current) {
+                setBusy(false);
+                setRunning("");
+            }
         }
     };
 
@@ -94,11 +102,12 @@ export default function TryOnVisit({ def }) {
                         <li key={v.id}>
                             <button
                                 type="button"
-                                disabled={busy}
+                                disabled={running === v.id}
                                 onClick={() => run(v.id)}
-                                className="w-full px-3 py-2 text-left text-sm hover:bg-paper disabled:opacity-50"
+                                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-paper"
                             >
                                 {new Date(v.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                                {running === v.id && <Loader2 size={14} className="animate-spin text-clinical-600" />}
                             </button>
                         </li>
                     ))}
