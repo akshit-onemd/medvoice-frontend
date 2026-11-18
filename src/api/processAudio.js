@@ -11,16 +11,8 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 // UI catches up immediately instead of waiting out a fake timer.
 export const PROCESSING_STAGES = [
     { key: "upload", label: "Uploading recording", estimateMs: 1500 },
-    {
-        key: "transcribe",
-        label: "Transcribing speech to text",
-        estimateMs: 9000,
-    },
-    {
-        key: "attachments",
-        label: "Reading attached documents",
-        estimateMs: 4000,
-    },
+    // Covers speech-to-text and/or attached documents, whichever the visit has
+    { key: "process", label: "Processing recording", estimateMs: 13000 },
     { key: "extract", label: "Extracting clinical details", estimateMs: 12000 },
 
     { key: "finalize", label: "Preparing your summary", estimateMs: 2000 },

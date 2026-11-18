@@ -2,13 +2,10 @@ import React from "react";
 import { Check, Loader2 } from "lucide-react";
 import { PROCESSING_STAGES } from "../api/processAudio";
 
-export default function ProcessingView({ currentStage, fileName }) {
+export default function ProcessingView({ currentStage }) {
   return (
     <div className="w-full max-w-lg mx-auto">
       <div className="bg-surface border border-line rounded-md shadow-panel p-6 sm:p-8 mt-4 sm:mt-10">
-        <h2 className="font-display text-xl text-ink mb-1">Reading the consultation</h2>
-        <p className="text-sm text-muted mb-8 truncate">{fileName}</p>
-
         <ol className="space-y-0">
           {PROCESSING_STAGES.map((stage, index) => {
             const isDone = index < currentStage;
@@ -43,7 +40,7 @@ export default function ProcessingView({ currentStage, fileName }) {
                     />
                   )}
                 </div>
-                <div className="pb-7">
+                <div className={isLast ? "" : "pb-7"}>
                   <p
                     className={`text-sm ${
                       isActive ? "text-ink font-medium" : isDone ? "text-ink" : "text-muted"

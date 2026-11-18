@@ -387,7 +387,6 @@ export default function Dashboard({ profile, onProfileChange }) {
                     {stage === "processing" && (
                         <ProcessingView
                             currentStage={processingStage}
-                            fileName={fileName}
                         />
                     )}
                     {stage === "result" && (
