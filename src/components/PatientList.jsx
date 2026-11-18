@@ -4,6 +4,7 @@ import SearchInput from "./SearchInput";
 import { listPatients } from "../api/processAudio";
 import { peek, setCached } from "../utils/cache";
 import ConsentBadge from "./ConsentBadge";
+import { prefetchPatient } from "../api/patientCache";
 
 const PAGE = 20;
 
@@ -215,6 +216,9 @@ export default function PatientList({
                                     <button
                                         type="button"
                                         onClick={() => onViewDetails?.(p)}
+                                        // Start loading their page while the finger/mouse is on it
+                                        onPointerEnter={() => prefetchPatient(p.id)}
+                                        onPointerDown={() => prefetchPatient(p.id)}
                                         className="min-w-0 flex-1 flex items-center gap-3 rounded text-left px-2 py-3 hover:bg-paper"
                                     >
                                         <Avatar name={p.name} />

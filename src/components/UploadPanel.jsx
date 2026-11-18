@@ -854,12 +854,12 @@ export default function UploadPanel({
                     />
                 )}
                 <div className="mt-3 border-t border-line pt-2">
-                    <h2 className="group-label">
+                    <h2 className="mb-3 mt-0.5 group-label">
                         Reports and old prescriptions
                     </h2>
-                    <p className="mb-3 mt-0.5 text-xs text-muted">
+                    {/* <p className="mb-3 mt-0.5 text-xs text-muted">
                         Optional. Anything you attach is read into the note.
-                    </p>
+                    </p> */}
                     <div className="grid grid-cols-3 gap-2.5">
                         <label className={ATTACH_TILE}>
                             <Paperclip size={20} strokeWidth={1.75} />

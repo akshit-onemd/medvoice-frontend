@@ -1,3 +1,4 @@
+import { forget } from "../utils/cache";
 // Backend base URL — change this if your server.js runs elsewhere.
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -24,13 +25,17 @@ export function setAuthTokenGetter(fn) {
 
 export async function authFetch(url, options = {}) {
     const token = getTokenFn ? await getTokenFn() : null;
-    return fetch(url, {
+    const res = await fetch(url, {
         ...options,
         headers: {
             ...(options.headers || {}),
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
     });
+    // Something was saved: cached full notes may be out of date now
+    const method = (options.method || "GET").toUpperCase();
+    if (method !== "GET" && res.ok) forget("consultation:");
+    return res;
 }
 export async function searchPatients(query, signal) {
     const res = await authFetch(

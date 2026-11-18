@@ -1,13 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import ConfirmDialog from "../components/ConfirmDialog";
 
-const MARK = { appBackGuard: true };
+// Each guard entry we add carries its depth: 1, 2, ... above the page's own entry.
+const KEY = "appBackGuard";
+const depthOf = (state) =>
+    state && typeof state[KEY] === "number" ? state[KEY] : 0;
+// Spare guard entries kept ready, so two quick Backs are both caught.
+const SPARE = 2;
 
-// Events that count as a real user tap/press. Browsers (Chrome and Safari)
-// skip history entries that were added without one, which is how Back used
-// to slip straight out of the app. pointerdown/touchstart don't count on
-// touch screens, so they're not here.
-const GESTURES = ["click", "touchend", "pointerup", "keydown"];
+// Only add entries during a real tap or key press. Chrome and Safari skip
+// history entries added without one (on page load, inside a Back handler,
+// after a scroll), and Back then jumps straight out of the app.
+const GESTURES = ["click", "keydown"];
 
 // Overlays (camera scanner, full-screen pickers, dialogs) that Back should
 // close first. Last one opened wins.
@@ -34,7 +38,7 @@ export function useBackLayer(active, handler) {
 /**
  * Keeps the person inside the app: Back runs onBack instead of leaving.
  *
- * active        keep a guard entry in history (true for the whole session)
+ * active        guard Back (true for the whole session)
  * warnOnUnload  browser prompt on refresh/close while work is at risk
  * onBack        returns "stay" | "leave" | prompt, where prompt is
  *               { title, message, confirmLabel, cancelLabel, destructive,
@@ -50,23 +54,30 @@ export default function useBackNav({ active, warnOnUnload, onBack }) {
     warnRef.current = warnOnUnload;
     backRef.current = onBack;
 
-    const armedRef = useRef(false);
     const leavingRef = useRef(false);
     const [prompt, setPrompt] = useState(null);
+    // After a refresh we may already be sitting on a guard entry left by the
+    // previous page load. Entries below it belong to that old page, so count
+    // spares from here.
+    const baseRef = useRef(depthOf(window.history.state));
+    const depthRef = useRef(baseRef.current);
 
-    const arm = () => {
-        if (armedRef.current || leavingRef.current || !activeRef.current)
-            return;
-        window.history.pushState(MARK, "", window.location.href);
-        armedRef.current = true;
+    const topUp = () => {
+        if (leavingRef.current || !activeRef.current) return;
+        let d = depthOf(window.history.state);
+        const want = baseRef.current + SPARE;
+        while (d < want) {
+            d += 1;
+            window.history.pushState({ [KEY]: d }, "", window.location.href);
+        }
+        depthRef.current = d;
     };
 
     const leave = () => {
-        // Step over our guard entry too, if it's there
-        const steps = armedRef.current ? 2 : 1;
-        armedRef.current = false;
+        // Past every guard entry and the page's own entry
+        const d = depthOf(window.history.state);
         leavingRef.current = true;
-        window.history.go(-steps);
+        window.history.go(-(d + 1));
         // Nothing earlier in history (opened in a fresh tab): still here.
         setTimeout(() => {
             if (document.visibilityState !== "visible") return;
@@ -79,15 +90,8 @@ export default function useBackNav({ active, warnOnUnload, onBack }) {
         else if (result && typeof result === "object") setPrompt(result);
     };
 
-    // Arm on load too. Some browsers ignore an entry added before the first
-    // tap; the gesture listeners below cover those once the person taps.
     useEffect(() => {
-        if (active) arm();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [active]);
-
-    useEffect(() => {
-        const onGesture = () => arm();
+        const onGesture = () => topUp();
         GESTURES.forEach((ev) =>
             window.addEventListener(ev, onGesture, {
                 passive: true,
@@ -95,17 +99,20 @@ export default function useBackNav({ active, warnOnUnload, onBack }) {
             }),
         );
 
-        const onPop = () => {
-            if (!armedRef.current) return; // not our entry
-            armedRef.current = false;
+        const onPop = (e) => {
+            const d = depthOf(e.state);
+            const wentBack = d < depthRef.current;
+            depthRef.current = d;
+            if (!wentBack || leavingRef.current || !activeRef.current) return;
+            // Nothing is added to history here; the next tap tops up again.
             const top = layers[layers.length - 1];
             let result = "stay";
             try {
-                result = (top ? top.ref.current() : backRef.current?.()) || "stay";
+                result =
+                    (top ? top.ref.current() : backRef.current?.()) || "stay";
             } catch {
                 result = "stay";
             }
-            if (result !== "leave") arm(); // protect again right away
             settle(result);
         };
 
@@ -115,7 +122,9 @@ export default function useBackNav({ active, warnOnUnload, onBack }) {
             e.returnValue = "";
         };
         const onPageShow = (e) => {
-            if (e.persisted) leavingRef.current = false;
+            if (!e.persisted) return;
+            leavingRef.current = false;
+            depthRef.current = depthOf(window.history.state);
         };
 
         window.addEventListener("popstate", onPop);

@@ -3,12 +3,20 @@ import { it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, act, fireEvent } from "@testing-library/react";
 import useBackNav, { useBackLayer } from "./useBackNav";
 
-afterEach(cleanup);
+afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+});
 
-const pressBack = () =>
-    act(() => {
-        window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+const guardDepth = () => window.history.state?.appBackGuard || 0;
+
+// A real Back: the browser moves one entry back and fires popstate
+const pressBack = async () => {
+    await act(async () => {
+        window.history.back();
+        await new Promise((r) => setTimeout(r, 30));
     });
+};
 
 function Scanner({ onClose }) {
     useBackLayer(true, () => {
@@ -20,14 +28,11 @@ function Scanner({ onClose }) {
 
 function App({ onBack }) {
     const [scan, setScan] = useState(false);
-    const prompt = useBackNav({
-        active: true,
-        warnOnUnload: false,
-        onBack,
-    });
+    const prompt = useBackNav({ active: true, warnOnUnload: false, onBack });
     return (
         <div>
             <button onClick={() => setScan(true)}>Scan pages</button>
+            <button>other</button>
             {scan && <Scanner onClose={() => setScan(false)} />}
             {prompt}
         </div>
@@ -41,70 +46,74 @@ const leaveApp = () => ({
     onConfirm: () => "leave",
 });
 
-it("arms the guard on load, once", () => {
+it("adds history entries only on a tap, never on load", () => {
     const push = vi.spyOn(window.history, "pushState");
     render(<App onBack={leaveApp} />);
-    expect(push).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByText("Scan pages"));
-    expect(push).toHaveBeenCalledTimes(1);
-    push.mockRestore();
+    expect(push).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("other"));
+    expect(push).toHaveBeenCalledTimes(2); // two spare Back presses
+    fireEvent.click(screen.getByText("other"));
+    expect(push).toHaveBeenCalledTimes(2); // already topped up
 });
 
-it("re-arms on the next tap after leaving was cancelled by the browser", () => {
-    const go = vi.spyOn(window.history, "go").mockImplementation(() => {});
-    vi.useFakeTimers();
-    render(<App onBack={() => "leave"} />);
-    pressBack(); // leave: nothing earlier in history, so we stay here
-    act(() => vi.advanceTimersByTime(1500));
-    const push = vi.spyOn(window.history, "pushState");
-    fireEvent.click(screen.getByText("Scan pages"));
-    expect(push).toHaveBeenCalledTimes(1);
-    vi.useRealTimers();
-    push.mockRestore();
-    go.mockRestore();
-});
-
-it("Back with an open scanner closes the scanner, not the app", () => {
-    const go = vi.spyOn(window.history, "go").mockImplementation(() => {});
+it("Back with an open scanner closes the scanner, not the app", async () => {
+    const go = vi.spyOn(window.history, "go");
     render(<App onBack={leaveApp} />);
     fireEvent.click(screen.getByText("Scan pages"));
     expect(screen.getByText("camera")).toBeTruthy();
-    pressBack();
+    await pressBack();
     expect(screen.queryByText("camera")).toBeNull();
     expect(screen.queryByText("Leave OneMD?")).toBeNull();
     expect(go).not.toHaveBeenCalled();
-    go.mockRestore();
 });
 
-it("Back on the home screen asks before leaving; Stay keeps you in", () => {
-    const go = vi.spyOn(window.history, "go").mockImplementation(() => {});
+it("Back never adds history entries itself (browsers skip those)", async () => {
     render(<App onBack={leaveApp} />);
-    fireEvent.click(document.body);
-    pressBack();
+    fireEvent.click(screen.getByText("other"));
+    const push = vi.spyOn(window.history, "pushState");
+    await pressBack();
     expect(screen.getByText("Leave OneMD?")).toBeTruthy();
+    expect(push).not.toHaveBeenCalled();
+});
+
+it("two quick Backs without a tap in between are both caught", async () => {
+    const onBack = vi.fn(() => "stay");
+    render(<App onBack={onBack} />);
+    fireEvent.click(screen.getByText("other"));
+    await pressBack();
+    await pressBack();
+    expect(onBack).toHaveBeenCalledTimes(2);
+});
+
+it("Stay keeps you in and the next tap re-protects", async () => {
+    const go = vi.spyOn(window.history, "go");
+    render(<App onBack={leaveApp} />);
+    fireEvent.click(screen.getByText("other"));
+    const top = guardDepth();
+    await pressBack();
+    expect(guardDepth()).toBe(top - 1);
     fireEvent.click(screen.getByText("Stay"));
     expect(screen.queryByText("Leave OneMD?")).toBeNull();
+    expect(guardDepth()).toBe(top);
     expect(go).not.toHaveBeenCalled();
-    go.mockRestore();
 });
 
-it("confirming Leave goes back past the guard", () => {
-    const go = vi.spyOn(window.history, "go").mockImplementation(() => {});
+it("Leave goes back past every guard entry", async () => {
     render(<App onBack={leaveApp} />);
-    fireEvent.click(document.body);
-    pressBack();
+    fireEvent.click(screen.getByText("other"));
+    await pressBack();
+    const go = vi.spyOn(window.history, "go").mockImplementation(() => {});
     fireEvent.click(screen.getByText("Leave"));
-    expect(go).toHaveBeenCalledWith(-2);
-    go.mockRestore();
+    expect(go).toHaveBeenCalledWith(-(guardDepth() + 1));
 });
 
-it("Back while the leave prompt is open just closes the prompt", () => {
-    const go = vi.spyOn(window.history, "go").mockImplementation(() => {});
+it("Back while the leave prompt is open just closes the prompt", async () => {
+    const go = vi.spyOn(window.history, "go");
     render(<App onBack={leaveApp} />);
-    fireEvent.click(document.body);
-    pressBack();
-    pressBack();
+    fireEvent.click(screen.getByText("other"));
+    await pressBack();
+    expect(screen.getByText("Leave OneMD?")).toBeTruthy();
+    await pressBack();
     expect(screen.queryByText("Leave OneMD?")).toBeNull();
     expect(go).not.toHaveBeenCalled();
-    go.mockRestore();
 });

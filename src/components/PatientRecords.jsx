@@ -10,10 +10,11 @@ import {
 import ResultView from "./ResultView";
 import { AIOverviewCard } from "./sections/shared";
 import {
-    getPatientConsultations,
-    getPatientSummary,
-    getConsultation,
-} from "../api/processAudio";
+    usePatientVisits,
+    usePatientSummary,
+    loadConsultation,
+    prefetchConsultations,
+} from "../api/patientCache";
 import { downloadConsultationPdf } from "../utils/downloadConsultationPdf";
 import useConsent from "../hooks/useConsent";
 import ConsentFlow from "./ConsentFlow";
@@ -32,10 +33,13 @@ export default function PatientRecords({
     const [patient, setPatient] = useState(patientIn);
     useEffect(() => setPatient(patientIn), [patientIn]);
     const [showConsentRecord, setShowConsentRecord] = useState(false);
-    const [consultations, setConsultations] = useState([]);
-    const [loadingConsultations, setLoadingConsultations] = useState(true);
-    const [patientSummary, setPatientSummary] = useState(EMPTY_SUMMARY);
-    const [loadingSummary, setLoadingSummary] = useState(true);
+    // Shown at once from the last open of this patient, refreshed quietly
+    const visits = usePatientVisits(patient.id);
+    const summary = usePatientSummary(patient.id);
+    const consultations = visits.data || [];
+    const loadingConsultations = visits.loading;
+    const patientSummary = summary.data || EMPTY_SUMMARY;
+    const loadingSummary = summary.loading;
     const [activeResult, setActiveResult] = useState(null);
     const [openingId, setOpeningId] = useState(null);
     const [downloadingId, setDownloadingId] = useState(null);
@@ -45,28 +49,20 @@ export default function PatientRecords({
     const [showDetails, setShowDetails] = useState(false);
 
     useEffect(() => {
-        let cancelled = false;
         setError("");
         setActiveResult(null);
-        setConsultations([]);
-        setPatientSummary(EMPTY_SUMMARY);
-        setLoadingConsultations(true);
-        setLoadingSummary(true);
-
-        getPatientConsultations(patient.id)
-            .then((d) => !cancelled && setConsultations(d))
-            .catch((err) => !cancelled && setError(err.message))
-            .finally(() => !cancelled && setLoadingConsultations(false));
-
-        getPatientSummary(patient.id)
-            .then((s) => !cancelled && setPatientSummary(s))
-            .catch(() => !cancelled && setPatientSummary(EMPTY_SUMMARY))
-            .finally(() => !cancelled && setLoadingSummary(false));
-
-        return () => {
-            cancelled = true;
-        };
     }, [patient.id]);
+    useEffect(() => {
+        if (visits.error && !visits.data) setError(visits.error.message);
+    }, [visits.error, visits.data]);
+    // Load the latest few notes in the background so opening them is instant
+    const latestIds = consultations
+        .slice(0, 3)
+        .map((c) => c.id)
+        .join(",");
+    useEffect(() => {
+        if (latestIds) prefetchConsultations(latestIds.split(","));
+    }, [latestIds]);
 
     useEffect(() => {
         window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -77,7 +73,7 @@ export default function PatientRecords({
         setOpeningId(id);
         setError("");
         try {
-            setActiveResult(await getConsultation(id));
+            setActiveResult(await loadConsultation(id));
         } catch (err) {
             setError(err.message);
         } finally {
@@ -89,7 +85,7 @@ export default function PatientRecords({
         setDownloadingId(id);
         setError("");
         try {
-            const full = await getConsultation(id);
+            const full = await loadConsultation(id);
             await downloadConsultationPdf(full);
         } catch (err) {
             setError(err.message || "Couldn't generate the PDF.");
@@ -102,7 +98,12 @@ export default function PatientRecords({
         return (
             <ResultView
                 result={activeResult}
-                onReset={() => setActiveResult(null)}
+                onReset={() => {
+                    setActiveResult(null);
+                    // The note may have been edited: refresh the list and summary
+                    visits.refresh().catch(() => {});
+                    summary.refresh().catch(() => {});
+                }}
             />
         );
     }
