@@ -155,7 +155,7 @@ export function InvestigationsCard({ investigations, title = "Investigations" })
                                                                                 : "Not yet verified"
                                                                     }
                                                                 >
-                                                                    ·{" "}
+                                                                    ·
                                                                     {
                                                                         r.loinc_code
                                                                     }

@@ -108,7 +108,7 @@ export default function TemplateChat({ onSaved, onEditByHand, onCancel }) {
                 </div>
                 {error && (
                     <p className="px-5 pb-2 text-sm text-alert-500">
-                        {error}{" "}
+                        {error}
                         {messages.at(-1)?.role === "user" && (
                             <button type="button" onClick={retry} className="underline">
                                 Try again

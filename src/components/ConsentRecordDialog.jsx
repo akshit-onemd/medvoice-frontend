@@ -264,7 +264,7 @@ export default function ConsentRecordDialog({ patient, onClose, onRecord }) {
                                                     ? ` · ${h.signer_name}`
                                                     : ""}
                                                 <span className="text-muted">
-                                                    {" "}
+                                                    
                                                     · v{h.notice_version}
                                                 </span>
                                             </span>

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown, LayoutTemplate } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ChevronDown, LayoutTemplate, X } from "lucide-react";
 import { forgetTemplates, useTemplateList } from "../api/templateCache";
 import TemplateSearchList from "./TemplateSearchList";
 
@@ -22,13 +23,25 @@ export default function TemplatePicker({ value, onChange, disabled }) {
         }
     }, [list, value, onChange]);
     // Close on a click outside
+    // The popup: Esc closes it, and the page behind doesn't scroll
+    const panelRef = useRef(null);
     useEffect(() => {
-        if (!open) return;
-        const onDown = (e) => {
-            if (!boxRef.current?.contains(e.target)) setOpen(false);
+        if (!open) return undefined;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        panelRef.current?.focus(); // the popup, not the search box, so no keyboard pops up on phones
+        const onKey = (e) => {
+            if (e.key === "Escape") {
+                e.stopPropagation();
+                setOpen(false);
+                buttonRef.current?.focus();
+            }
         };
-        document.addEventListener("mousedown", onDown);
-        return () => document.removeEventListener("mousedown", onDown);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.body.style.overflow = prev;
+            document.removeEventListener("keydown", onKey);
+        };
     }, [open]);
 
     // Keep the row's place while the first list loads, so the page doesn't jump
@@ -63,19 +76,49 @@ export default function TemplatePicker({ value, onChange, disabled }) {
                 <span className="min-w-0 flex-1 truncate font-medium">{chosen?.name || "Choose…"}</span>
                 <ChevronDown size={15} className={`shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
             </button>
-            {open && (
-                <div className="absolute left-0 right-0 z-40 mt-1 rounded-md border border-line bg-surface p-2 shadow-panel">
-                    <TemplateSearchList
-                        list={list}
-                        value={value}
-                        onPick={(t) => {
-                            onChange(t.id);
-                            close();
-                        }}
-                        onEscape={close}
-                    />
-                </div>
-            )}
+            {open &&
+                createPortal(
+                    // Full screen on phones, a centred window on larger screens. Browse or search.
+                    <div
+                        className="fixed inset-0 z-[100] flex items-stretch justify-center bg-ink/50 sm:items-center sm:p-4"
+                        onMouseDown={(e) => e.target === e.currentTarget && close()}
+                    >
+                        <div
+                            ref={panelRef}
+                            tabIndex={-1}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Choose a template"
+                            className="flex h-full w-full flex-col bg-surface outline-none sm:h-[min(80vh,640px)] sm:max-w-lg sm:rounded-md sm:border sm:border-line sm:shadow-panel"
+                        >
+                            <div className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3">
+                                <h2 className="font-display text-lg text-ink">Choose a template</h2>
+                                <button
+                                    type="button"
+                                    onClick={close}
+                                    aria-label="Close"
+                                    className="rounded p-1.5 text-muted hover:bg-paper hover:text-ink"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                            <div className="min-h-0 flex-1 px-4 pb-4 pt-3" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+                                <TemplateSearchList
+                                    list={list}
+                                    value={value}
+                                    autoFocus={false}
+                                    fill
+                                    onPick={(t) => {
+                                        onChange(t.id);
+                                        close();
+                                    }}
+                                    onEscape={close}
+                                />
+                            </div>
+                        </div>
+                    </div>,
+                    document.body,
+                )}
         </div>
     );
 }

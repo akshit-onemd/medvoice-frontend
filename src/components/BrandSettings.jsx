@@ -311,7 +311,7 @@ export default function BrandSettings() {
                     </div>
                     {shownFamilies.length === 0 && (
                         <p className="mt-1.5 rounded border border-line bg-surface px-3 py-2 text-sm text-muted">
-                            No brand matches “{filter}”.{" "}
+                            No brand matches “{filter}”.
                             <button type="button" onClick={() => setFilter("")} className="text-clinical-600 underline">
                                 Show all
                             </button>

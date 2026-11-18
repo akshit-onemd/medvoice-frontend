@@ -29,7 +29,8 @@ const norm = (s) => String(s || "").toLowerCase();
 
 // Search box + grouped list of templates. Recent and default first when nothing is typed.
 // Keyboard: arrows move, Enter picks, Esc calls onEscape.
-export default function TemplateSearchList({ list, value, currentId, onPick, onEscape, autoFocus = true, maxHeight = "18rem" }) {
+// fill: take the parent's full height (in a popup), the list scrolling below the search box
+export default function TemplateSearchList({ list, value, currentId, onPick, onEscape, autoFocus = true, maxHeight = "18rem", fill = false }) {
     const [q, setQ] = useState("");
     const [active, setActive] = useState(0);
     const inputRef = useRef(null);
@@ -96,8 +97,8 @@ export default function TemplateSearchList({ list, value, currentId, onPick, onE
 
     let index = -1;
     return (
-        <div>
-            <div className="relative">
+        <div className={fill ? "flex h-full min-h-0 flex-col" : ""}>
+            <div className="relative shrink-0">
                 <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
                 <input
                     ref={inputRef}
@@ -112,7 +113,13 @@ export default function TemplateSearchList({ list, value, currentId, onPick, onE
                     className="w-full rounded border border-line bg-surface py-2 pl-8 pr-3 text-sm text-ink placeholder:text-muted outline-none focus:border-clinical-500"
                 />
             </div>
-            <div ref={listRef} id="template-options" role="listbox" className="mt-2 overflow-y-auto" style={{ maxHeight }}>
+            <div
+                ref={listRef}
+                id="template-options"
+                role="listbox"
+                className={`mt-2 overflow-y-auto ${fill ? "min-h-0 flex-1" : ""}`}
+                style={fill ? undefined : { maxHeight }}
+            >
                 {list && !flat.length && <p className="px-2 py-3 text-sm text-muted">No template matches “{q}”.</p>}
                 {groups.map((g) => (
                     <div key={g.label || "results"} className="mb-1.5">

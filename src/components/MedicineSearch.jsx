@@ -222,15 +222,15 @@ export function MedicineField({ value, onChange }) {
                 </div>
                 {needsBrand && (
                     <p className="mt-1.5 text-xs text-alert-500">
-                        No brand chosen.{" "}
+                        No brand chosen.
                         <button
                             type="button"
                             onClick={() => setOpen("brands")}
                             className="underline underline-offset-2"
                         >
                             Search brands
-                        </button>{" "}
-                        or{" "}
+                        </button>
+                        or
                         <button
                             type="button"
                             onClick={() => onChange({ _genericOk: true })}

@@ -70,6 +70,7 @@ export default function ChangeTemplateDialog({ consultationId, currentId, onChan
                             value={pick}
                             currentId={currentId}
                             onPick={(t) => !busy && setPick(t.id)}
+                            autoFocus={false}
                             maxHeight="45vh"
                         />
                     )}

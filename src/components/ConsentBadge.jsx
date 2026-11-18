@@ -52,7 +52,7 @@ export default function ConsentBadge({
                 {label}
                 {onClick ? (
                     <span className="font-normal underline underline-offset-2">
-                        {" "}
+                        
                         · {action}
                     </span>
                 ) : null}

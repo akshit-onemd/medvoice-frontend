@@ -243,7 +243,7 @@ export default function PrescriptionEditor({
                                     })
                                 }
                             />
-                        </Field>{" "}
+                        </Field>
                         <Field label="Duration">
                             <input
                                 className={inputCls}

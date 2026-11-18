@@ -10,6 +10,7 @@ import {
 import { VitalsCard, AllergiesCard } from "./sections/VitalsAndAllergies";
 import { Receipt } from "lucide-react"; // add to existing lucide import
 import SuggestedPlanCard from "./SuggestedPlanCard";
+import ShareWhatsAppButton from "./ShareWhatsAppButton";
 import VoiceFillButton from "./VoiceFillButton";
 import VoiceReviewDialog from "./VoiceReviewDialog";
 import BillDialog from "./BillDialog";
@@ -457,11 +458,18 @@ export default function ResultView({ result, onReset }) {
                         }
                         onBill={canEdit ? () => setBillOpen(true) : undefined}
                         empty={!hasContent}
+                        share={
+                            <ShareWhatsAppButton
+                                patientName={result?.saved?.patient_name}
+                                phone={result?.saved?.patient_phone}
+                                disabled={!hasContent}
+                            />
+                        }
                     />
                     {(doc.template?.name || canChangeTemplate) && (
                         <div className="-mt-3 mb-5 flex items-center gap-2 pl-[52px] text-sm text-muted">
                             <span>
-                                Template:{" "}
+                                Template:
                                 <span className="text-ink">
                                     {doc.template?.name || noteTemplate?.name || "General OPD"}
                                 </span>
@@ -485,7 +493,7 @@ export default function ResultView({ result, onReset }) {
                                 consultationId={consultationId}
                                 onResult={setVoiceResult}
                                 disabled={!!editingSection}
-                            />{" "}
+                            />
                             {editingSection && (
                                 <p className="mt-2 text-xs text-muted">
                                     Finish or cancel the open editor to use
@@ -839,7 +847,7 @@ export default function ResultView({ result, onReset }) {
     );
 }
 
-function TopBar({ onReset, language, onDownload, onBill, empty = false }) {
+function TopBar({ onReset, language, onDownload, onBill, share = null, empty = false }) {
     return (
         <div className="flex items-center justify-between gap-3 mb-6">
             <div className="flex items-center gap-3">
@@ -893,6 +901,7 @@ function TopBar({ onReset, language, onDownload, onBill, empty = false }) {
                         <span className="hidden sm:inline">Create Bill</span>
                     </button>
                 )}
+                {share}
             </div>
         </div>
     );

@@ -1,6 +1,7 @@
 import React from "react";
 import { UserButton } from "@clerk/react";
 import BrandMark from "./BrandMark";
+import useTypingOnTouch from "../hooks/useTypingOnTouch";
 
 // The frame around every signed-in screen.
 // Desktop: a navy sidebar with the brand, the main destinations and the account.
@@ -15,6 +16,8 @@ export default function AppShell({
     accountNote = "",
     children,
 }) {
+    // While the keyboard is up the tab bar is hidden, so it can't sit on top of the keyboard
+    const typing = useTypingOnTouch();
     return (
         <div className="min-h-screen bg-paper">
             {/* Desktop sidebar */}
@@ -104,7 +107,7 @@ export default function AppShell({
             </main>
 
             {/* Phone tab bar */}
-            {nav.length > 1 && (
+            {nav.length > 1 && !typing && (
                 <nav
                     aria-label="Main"
                     className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur lg:hidden"
