@@ -144,13 +144,8 @@ export default function Dashboard({ profile, onProfileChange }) {
         reset();
     };
 
-    const handleBack = () => {
-        if (stage === "processing") return "stay";
-        if (isAnyDirty()) {
-            if (!window.confirm("You have unsaved changes. Discard them?"))
-                return "stay";
-            clearAllDrafts();
-        }
+    // One step back inside the app, or "leave" from the home screen
+    const stepBack = () => {
         if (showProfile) {
             setShowProfile(false);
             return "stay";
@@ -167,9 +162,37 @@ export default function Dashboard({ profile, onProfileChange }) {
         return "leave"; // Home: exit the app
     };
 
-    useBackNav({
-        active:
-            dirty || stage === "processing" || showProfile || stage !== "idle",
+    const handleBack = () => {
+        if (stage === "processing") return "stay";
+        const atHome = stage === "idle" && !showProfile;
+        if (isAnyDirty()) {
+            return {
+                title: atHome ? "Leave OneMD?" : "Discard changes?",
+                message: atHome
+                    ? "You have unsaved work on this visit. It will be lost if you leave."
+                    : "You have unsaved changes. They will be lost.",
+                confirmLabel: atHome ? "Leave" : "Discard",
+                destructive: true,
+                onConfirm: () => {
+                    clearAllDrafts();
+                    return stepBack();
+                },
+            };
+        }
+        if (atHome) {
+            return {
+                title: "Leave OneMD?",
+                message: "You're about to exit the app.",
+                confirmLabel: "Leave",
+                onConfirm: () => "leave",
+            };
+        }
+        return stepBack();
+    };
+
+    // Guard Back for the whole session, not only while there's unsaved work
+    const backPrompt = useBackNav({
+        active: true,
         warnOnUnload: dirty || stage === "processing",
         onBack: handleBack,
     });
@@ -379,6 +402,7 @@ export default function Dashboard({ profile, onProfileChange }) {
                     )}
                 </>
             )}
+            {backPrompt}
         </AppShell>
     );
 }

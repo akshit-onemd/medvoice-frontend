@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, LayoutTemplate, X } from "lucide-react";
 import { forgetTemplates, useTemplateList } from "../api/templateCache";
 import TemplateSearchList from "./TemplateSearchList";
+import { useBackLayer } from "../hooks/useBackNav";
 
 export const forgetTemplateList = () => forgetTemplates();
 export { rememberTemplate } from "./TemplateSearchList";
@@ -25,6 +26,11 @@ export default function TemplatePicker({ value, onChange, disabled }) {
     // Close on a click outside
     // The popup: Esc closes it, and the page behind doesn't scroll
     const panelRef = useRef(null);
+    // Back closes the popup instead of leaving the page
+    useBackLayer(open, () => {
+        setOpen(false);
+        return "stay";
+    });
     useEffect(() => {
         if (!open) return undefined;
         const prev = document.body.style.overflow;

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useBackLayer } from "../hooks/useBackNav";
 
 export default function ConfirmDialog({
     title,
@@ -11,6 +12,11 @@ export default function ConfirmDialog({
     onCancel,
 }) {
     const cancelRef = useRef(null);
+    // Back closes this dialog, same as Cancel
+    useBackLayer(true, () => {
+        onCancel();
+        return "stay";
+    });
 
     useEffect(() => {
         const prev = document.body.style.overflow;

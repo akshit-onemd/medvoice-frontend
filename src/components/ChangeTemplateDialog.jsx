@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useBackLayer } from "../hooks/useBackNav";
 import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
 import { changeNoteTemplate } from "../api/processAudio";
@@ -15,6 +16,11 @@ export default function ChangeTemplateDialog({ consultationId, currentId, onChan
     useEffect(() => {
         if (listError) setError("Couldn't load templates");
     }, [listError]);
+    // Back closes the dialog (unless it's mid-change)
+    useBackLayer(true, () => {
+        if (!busy) onClose();
+        return "stay";
+    });
     useEffect(() => {
         const onKey = (e) => e.key === "Escape" && !busy && onClose();
         document.addEventListener("keydown", onKey);

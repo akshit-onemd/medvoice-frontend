@@ -6,6 +6,12 @@ const SR =
         ? window.SpeechRecognition || window.webkitSpeechRecognition
         : null;
 
+// Phones/tablets: focusing on its own would pop the keyboard up every time
+// the screen opens, so only focus automatically with a mouse.
+const isTouch = () =>
+    typeof window !== "undefined" &&
+    !!window.matchMedia?.("(pointer: coarse)").matches;
+
 // "9 8 2 0 0 9 8 2 0 0" -> "9820098200"; otherwise trim trailing punctuation
 function normalize(t) {
     const s = t.trim().replace(/[.,!?]+$/, "");
@@ -83,7 +89,7 @@ export default function SearchInput({
                     placeholder={placeholder}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    autoFocus={autoFocus}
+                    autoFocus={autoFocus && !isTouch()}
                     className={`${inputClassName} pl-11 ${SR ? "pr-11" : ""}`}
                 />
                 {SR && (

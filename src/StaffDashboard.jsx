@@ -124,20 +124,39 @@ export default function StaffDashboard({ doctorName }) {
         setError("");
     };
     const dirty = useAnyDirty();
-    useBackNav({
-        active: dirty || !!mode,
+    const stepBack = () => {
+        if (mode) {
+            closeForm();
+            return "stay";
+        }
+        return "leave";
+    };
+    // Guard Back for the whole session, not only while there's unsaved work
+    const backPrompt = useBackNav({
+        active: true,
         warnOnUnload: dirty,
         onBack: () => {
             if (isAnyDirty()) {
-                if (!window.confirm("You have unsaved changes. Discard them?"))
-                    return "stay";
-                clearAllDrafts();
+                return {
+                    title: mode ? "Discard changes?" : "Leave OneMD?",
+                    message: "You have unsaved changes. They will be lost.",
+                    confirmLabel: mode ? "Discard" : "Leave",
+                    destructive: true,
+                    onConfirm: () => {
+                        clearAllDrafts();
+                        return stepBack();
+                    },
+                };
             }
-            if (mode) {
-                closeForm();
-                return "stay";
+            if (!mode) {
+                return {
+                    title: "Leave OneMD?",
+                    message: "You're about to exit the app.",
+                    confirmLabel: "Leave",
+                    onConfirm: () => "leave",
+                };
             }
-            return "leave";
+            return stepBack();
         },
     });
     const handleSave = async (payload) => {
@@ -378,6 +397,7 @@ export default function StaffDashboard({ doctorName }) {
                     onDone={onConsentDone}
                 />
             )}
+            {backPrompt}
         </AppShell>
     );
 }

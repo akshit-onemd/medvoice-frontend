@@ -1,10 +1,47 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const MARK = { appBackGuard: true };
 
-// active: keep a history entry so Back reaches onBack instead of leaving
-// warnOnUnload: show the browser's refresh and close prompt
-// onBack: returns "stay" (handled inside the app) or "leave" (exit the app)
+// Events that count as a real user tap/press. Browsers (Chrome and Safari)
+// skip history entries that were added without one, which is how Back used
+// to slip straight out of the app. pointerdown/touchstart don't count on
+// touch screens, so they're not here.
+const GESTURES = ["click", "touchend", "pointerup", "keydown"];
+
+// Overlays (camera scanner, full-screen pickers, dialogs) that Back should
+// close first. Last one opened wins.
+const layers = [];
+
+/**
+ * Let an open overlay handle Back before the page does.
+ * handler returns "stay" (handled), "leave", or a prompt object (see below).
+ */
+export function useBackLayer(active, handler) {
+    const ref = useRef(handler);
+    ref.current = handler;
+    useEffect(() => {
+        if (!active) return undefined;
+        const layer = { ref };
+        layers.push(layer);
+        return () => {
+            const i = layers.indexOf(layer);
+            if (i >= 0) layers.splice(i, 1);
+        };
+    }, [active]);
+}
+
+/**
+ * Keeps the person inside the app: Back runs onBack instead of leaving.
+ *
+ * active        keep a guard entry in history (true for the whole session)
+ * warnOnUnload  browser prompt on refresh/close while work is at risk
+ * onBack        returns "stay" | "leave" | prompt, where prompt is
+ *               { title, message, confirmLabel, cancelLabel, destructive,
+ *                 onConfirm: () => "stay" | "leave" }
+ *
+ * Returns an element to render: the in-app confirm shown on Back.
+ */
 export default function useBackNav({ active, warnOnUnload, onBack }) {
     const activeRef = useRef(active);
     const warnRef = useRef(warnOnUnload);
@@ -15,27 +52,43 @@ export default function useBackNav({ active, warnOnUnload, onBack }) {
 
     const armedRef = useRef(false);
     const leavingRef = useRef(false);
+    const [prompt, setPrompt] = useState(null);
 
     const arm = () => {
-        if (armedRef.current) return;
+        if (armedRef.current || leavingRef.current || !activeRef.current)
+            return;
         window.history.pushState(MARK, "", window.location.href);
         armedRef.current = true;
     };
 
-    // Add the entry when the guard is first needed
+    const leave = () => {
+        // Step over our guard entry too, if it's there
+        const steps = armedRef.current ? 2 : 1;
+        armedRef.current = false;
+        leavingRef.current = true;
+        window.history.go(-steps);
+        // Nothing earlier in history (opened in a fresh tab): still here.
+        setTimeout(() => {
+            if (document.visibilityState !== "visible") return;
+            leavingRef.current = false;
+        }, 1200);
+    };
+
+    const settle = (result) => {
+        if (result === "leave") leave();
+        else if (result && typeof result === "object") setPrompt(result);
+    };
+
+    // Arm on load too. Some browsers ignore an entry added before the first
+    // tap; the gesture listeners below cover those once the person taps.
     useEffect(() => {
-        if (!active) return;
-        leavingRef.current = false;
-        arm();
+        if (active) arm();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [active]);
 
     useEffect(() => {
-        // Chrome skips entries added before the first tap. Arm on a tap as well.
-        const onGesture = () => {
-            if (activeRef.current && !leavingRef.current) arm();
-        };
-        const events = ["pointerdown", "touchstart", "keydown"];
-        events.forEach((ev) =>
+        const onGesture = () => arm();
+        GESTURES.forEach((ev) =>
             window.addEventListener(ev, onGesture, {
                 passive: true,
                 capture: true,
@@ -45,24 +98,15 @@ export default function useBackNav({ active, warnOnUnload, onBack }) {
         const onPop = () => {
             if (!armedRef.current) return; // not our entry
             armedRef.current = false;
+            const top = layers[layers.length - 1];
             let result = "stay";
             try {
-                result = backRef.current?.() || "stay";
+                result = (top ? top.ref.current() : backRef.current?.()) || "stay";
             } catch {
                 result = "stay";
             }
-            if (result === "leave") {
-                leavingRef.current = true;
-                window.history.back();
-                // If nothing earlier exists, we are still here. Protect again.
-                setTimeout(() => {
-                    if (document.visibilityState !== "visible") return;
-                    leavingRef.current = false;
-                    if (activeRef.current) arm();
-                }, 1200);
-            } else {
-                arm();
-            }
+            if (result !== "leave") arm(); // protect again right away
+            settle(result);
         };
 
         const onBeforeUnload = (e) => {
@@ -78,18 +122,19 @@ export default function useBackNav({ active, warnOnUnload, onBack }) {
         window.addEventListener("beforeunload", onBeforeUnload);
         window.addEventListener("pageshow", onPageShow);
         return () => {
-            events.forEach((ev) =>
+            GESTURES.forEach((ev) =>
                 window.removeEventListener(ev, onGesture, { capture: true }),
             );
             window.removeEventListener("popstate", onPop);
             window.removeEventListener("beforeunload", onBeforeUnload);
             window.removeEventListener("pageshow", onPageShow);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Block pull-to-refresh while work is at risk
     useEffect(() => {
-        if (!warnOnUnload) return;
+        if (!warnOnUnload) return undefined;
         const html = document.documentElement;
         const body = document.body;
         const prevH = html.style.overscrollBehaviorY;
@@ -101,4 +146,24 @@ export default function useBackNav({ active, warnOnUnload, onBack }) {
             body.style.overscrollBehaviorY = prevB;
         };
     }, [warnOnUnload]);
+
+    if (!prompt) return null;
+    return React.createElement(ConfirmDialog, {
+        title: prompt.title,
+        message: prompt.message,
+        confirmLabel: prompt.confirmLabel || "Leave",
+        cancelLabel: prompt.cancelLabel || "Stay",
+        destructive: prompt.destructive,
+        onCancel: () => setPrompt(null),
+        onConfirm: () => {
+            setPrompt(null);
+            let result = "stay";
+            try {
+                result = prompt.onConfirm?.() || "stay";
+            } catch {
+                result = "stay";
+            }
+            settle(result);
+        },
+    });
 }

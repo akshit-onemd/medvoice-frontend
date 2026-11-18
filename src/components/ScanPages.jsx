@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useBackLayer } from "../hooks/useBackNav";
+import ConfirmDialog from "./ConfirmDialog";
 import {
     X,
     SwitchCamera,
@@ -471,27 +473,36 @@ export default function ScanPages({ onClose, onDone, output = "pdf" }) {
         }
     };
 
+    // Back: close the page editor, then the scanner. Captured pages ask first.
+    useBackLayer(true, () => {
+        if (busy) return "stay";
+        if (editIndex !== null) {
+            setEditIndex(null);
+            return "stay";
+        }
+        requestClose();
+        return "stay";
+    });
+
+    // X / Esc / Back. With pages captured, ask in an in-app dialog
+    // (iPhone Safari can silently drop window.confirm while the camera is on).
+    const [askDiscard, setAskDiscard] = useState(false);
     const requestClose = () => {
         if (busy) return;
-        const n = pagesRef.current.length;
-        if (
-            n > 0 &&
-            !window.confirm(`Discard ${n} scanned page${n === 1 ? "" : "s"}?`)
-        )
-            return;
-        onClose();
+        if (pagesRef.current.length > 0) setAskDiscard(true);
+        else onClose();
     };
 
     useEffect(() => {
         const onKey = (e) => {
-            if (e.key !== "Escape") return;
+            if (e.key !== "Escape" || askDiscard) return;
             if (editIndex !== null) setEditIndex(null);
             else requestClose();
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [editIndex, busy]);
+    }, [editIndex, busy, askDiscard]);
 
     const editing = editIndex !== null ? pages[editIndex] : null;
     const retakeNo = retakeId
@@ -882,6 +893,20 @@ export default function ScanPages({ onClose, onDone, output = "pdf" }) {
                         </button>
                     </div>
                 </div>
+            )}
+            {askDiscard && (
+                <ConfirmDialog
+                    title={`Discard ${pages.length} scanned page${pages.length === 1 ? "" : "s"}?`}
+                    message="Your scanned pages will be lost."
+                    confirmLabel="Discard"
+                    cancelLabel="Keep scanning"
+                    destructive
+                    onCancel={() => setAskDiscard(false)}
+                    onConfirm={() => {
+                        setAskDiscard(false);
+                        onClose();
+                    }}
+                />
             )}
         </div>,
         document.body,
