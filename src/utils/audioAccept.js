@@ -1,0 +1,30 @@
+// File types the "Upload audio" picker allows.
+// "audio/*" alone isn't enough on iPhone: the Files app greys out .mp3/.m4a
+// unless the extensions are listed too.
+export const AUDIO_ACCEPT = [
+    "audio/*",
+    ".mp3",
+    ".m4a",
+    ".mp4",
+    ".aac",
+    ".wav",
+    ".ogg",
+    ".oga",
+    ".opus",
+    ".webm",
+    ".flac",
+    ".amr",
+    ".3gp",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/mp4",
+    "audio/x-m4a",
+    "audio/aac",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/ogg",
+    "audio/webm",
+    "audio/flac",
+    "audio/amr",
+    "audio/3gpp",
+].join(",");

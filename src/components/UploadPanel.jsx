@@ -38,6 +38,7 @@ import ConsentBadge from "./ConsentBadge";
 import ConsentRecordDialog from "./ConsentRecordDialog";
 import { PatientDetailsDialog } from "./PatientDetails";
 import ScanPages from "./ScanPages";
+import { AUDIO_ACCEPT } from "../utils/audioAccept";
 function formatSize(bytes) {
     if (!bytes) return "";
     const kb = bytes / 1024;
@@ -828,19 +829,19 @@ export default function UploadPanel({
                         <input
                             ref={inputRef}
                             type="file"
-                            accept="audio/*"
+                            accept={AUDIO_ACCEPT}
                             className="hidden"
                             onChange={(e) => handleFiles(e.target.files)}
                         />
                     </div>
                 )}
-                {/* {!file && !hasPatient && (
+                {!file && !hasPatient && (
                     <p className="mt-2 text-xs text-muted">
                         {selectedPatient
                             ? "Recording is enabled once the patient's consent is recorded."
                             : "Select or add a patient above to enable recording."}
                     </p>
-                )} */}
+                )}
                 {file && (
                     <AudioPlayer
                         file={file}
@@ -853,12 +854,12 @@ export default function UploadPanel({
                     />
                 )}
                 <div className="mt-3 border-t border-line pt-2">
-                    <h2 className="mb-3 mt-0.5 group-label">
+                    <h2 className="group-label">
                         Reports and old prescriptions
                     </h2>
-                    {/* <p className="mb-3 mt-0.5 text-xs text-muted">
+                    <p className="mb-3 mt-0.5 text-xs text-muted">
                         Optional. Anything you attach is read into the note.
-                    </p> */}
+                    </p>
                     <div className="grid grid-cols-3 gap-2.5">
                         <label className={ATTACH_TILE}>
                             <Paperclip size={20} strokeWidth={1.75} />
